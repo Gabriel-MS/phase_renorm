@@ -219,6 +219,11 @@ def dewT_successive(z,x,K,T,Torig,P,IDs,EoS,MR,kij):
 #Given initial dew point, calculate PT envelope using continuation method--------------
 def PT_envelope(z,T,P,IDs,EoS,MR,kij):
     
+    #Reference for this algorithm:
+    #Algorithm based on other algorithm developed by Rafael Pereira and Iuri Segtovich
+    #Avaible at PyTherm
+    #https://github.com/iurisegtovich/PyTherm-applied-thermodynamics/tree/master/contents/models-and-algorithms-laboratory/LVE%20algorithms/PxT_L-V_Phase_Envelope_given_z
+    
     #Initial dew point estimation, find T guess
     idewT = dewT_guess(z,T,P,IDs,EoS,MR,kij)
     T = idewT[0]
