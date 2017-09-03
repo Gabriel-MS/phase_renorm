@@ -277,7 +277,7 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
     #Stop conditions
     Plow  = 0.025 #Stop condition for low pressure
     Phigh = 30.0 #Stop condition for high pressure
-    Tmax_step = 5.0 #Max step for temperature
+    Tmax_step = 2.0 #Max step for temperature
     lnKmax_step = 0.03 #Max step for lnK
     
     #Critical point detector
@@ -318,11 +318,13 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
             
             #Solve system
             step = scipy.linalg.solve(J,F)
-            print 'J',J
-            print 'F',F
-            print 'step',step
-            if phase ==1:
-                input('-------')
+            #print 'J',J
+            #print 'F',F
+            #print 'step',step
+            #if phase ==1:
+            #    input('-------')
+            
+            
             #PROBABLY J IS WRONG AFTER CRITICAL POINT=====================================
             #if phase==1:
             #    for i in range(0,nc+2):
@@ -450,7 +452,6 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
         #Jump critical point----------------------------------------------------
         critKpass = False
         if lnKm<critK:
-            print 'JUMP CRITICAL POINT!'
             while lnKm<critK:
                 S = S + delS
                 X = X + dXdS*delS
@@ -501,27 +502,21 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns):
     #NC equations derivatives with respect to lnK
     for i in range(0,nc):
         for j in range(0,nc):
-            w[0] = 0.28915419302214163
-            w[1] = 0.71084580697785871
-            P = 2.6323739683682334
-            T = 576.56800371970974
             w_orig = w[j]
-            print 'ENTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEER'
             w[j] = w_orig + w_orig*h
             lnphi_2 = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
-            print 'lnphi2',lnphi_2[i],lnphi_2[i],w[j],lnphi_2
+            #print 'lnphi2',lnphi_2[i],lnphi_2[i],w[j],lnphi_2
             w[j] = w_orig - w_orig*h
             lnphi_1 = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
-            print 'lnphi2-lnphi1',lnphi_2[i]-lnphi_1[i],lnphi_1[i],w[j]
+            #print 'lnphi2-lnphi1',lnphi_2[i]-lnphi_1[i],lnphi_1[i],w[j]
             w[j] = w_orig
             J[i][j] = (lnphi_2[i]-lnphi_1[i])*w[j]/(2*w[j]*h)
-            print 'pre',w[j]/(2*w[j]*h)
-            print 'J',J[i][j],w[j],w[j]/(2*w[j]*h)
-            print 'P',P,'T',T,'kij',kij,'comp',w
+            #print 'J',J[i][j],w[j],w[j]/(2*w[j]*h)
+            #print 'P',P,'T',T,'kij',kij,'comp',w
             if i==j:
                 J[i][j] = J[i][j]+1
-    print 'J ln K',J
-    input('-----------')
+    #print 'J ln K',J
+    #input('-----------')
     #print '----------'
                     
     #NC equations derivatives with respect to lnT
@@ -1063,17 +1058,17 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
         print 'Creating PT report'
         reportname = str('PT_%s.csv' %('_'.join(print_options[1])))
+        reportname = str('PT_%s.csv' %('_'.join(print_options[1])))
         report_PT(env_PT,print_options,reportname,print_options)
         print ('Report %s saved successfully' %reportname)
 
         print 'Starting to plot PT envelope'
         title = str('PT envelope\n%s' %(' + '.join(print_options[1])))
         figname = str('PT_%s.png' %('_'.join(print_options[1])))
-        boxtext = str('z=%.2f' %z)
+        #boxtext = str('z=%.2f' %z)
         boxtext = 'box'
-        plot_PT(title,'P(MPa)','T(K)',figname,boxtext,env_PT[3],env_PT[2])
+        plot_PT(title,'P(MPa)','T(K)',figname,boxtext,env_PT[2],env_PT[3])
         print ('Figure %s saved successfully' %figname)
-        input('...')
         #*******************************************************************************
 
     if env_type==2:
@@ -1097,7 +1092,6 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         figname = str('PV_%s.png' %('_'.join(print_options[1])))
         plot_PV(title,'Density (mol/m3)','T (K)',figname,env_PV[0],env_PV[1],env_PV[2])
         print ('Figure %s saved successfully' %figname)
-        input('...')
         #*******************************************************************************
 
     if env_type==3:
@@ -1117,7 +1111,6 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         boxtext = str('T=%.2fK' %T)
         plot_Pxy(title,'x1,y1','P(MPa)',figname,boxtext,env_pxy[0],env_pxy[1],env_pxy[2])
         print ('Figure %s saved successfully' %figname)
-        input('...')
         #*******************************************************************************
 #======================================================================================
 

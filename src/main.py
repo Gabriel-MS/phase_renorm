@@ -18,7 +18,7 @@ print ('    ============================================\n\n\n')
 #User menu to define custom configuration
 #user_options = menus.user()
 user_options = []
-user_options.append(1)
+user_options.append(2)
 user_options.append([8,9])
 user_options.append(3) #EoS
 user_options.append(1)
@@ -63,6 +63,9 @@ beta_auto = auto[1]
 SM = np.array([[1, 0],
                [0, 1]])
 R = 8.314462175e-6 #m3.MPa/K/mol
+
+print print_options
+input ('...')
 
 envelope.calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_auto,beta_auto,SM,env_type)
 

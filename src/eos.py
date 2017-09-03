@@ -483,6 +483,8 @@ def lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase):
     sig = param[0]
     eps = param[1]
     
+    x = x/np.sum(x)
+    
     a = a_calc(IDs,EoS,T)
     b = b_calc(IDs,EoS)
     
@@ -513,7 +515,6 @@ def lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase):
     Z1 = Z-1
     bZ1 = b/bmix*Z1
     lnfugcoef = bZ1-logZB+q_I
-    print 'ln',lnfugcoef,'V',V,'Z',Z,bmix,amix,B,eps,sig
     
     return lnfugcoef
 #=============================================================
