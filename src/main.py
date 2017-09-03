@@ -64,9 +64,6 @@ SM = np.array([[1, 0],
                [0, 1]])
 R = 8.314462175e-6 #m3.MPa/K/mol
 
-print print_options
-input ('...')
-
 envelope.calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_auto,beta_auto,SM,env_type)
 
 #End calculations==========================================================================================

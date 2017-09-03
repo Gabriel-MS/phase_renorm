@@ -1065,9 +1065,10 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         print 'Starting to plot PT envelope'
         title = str('PT envelope\n%s' %(' + '.join(print_options[1])))
         figname = str('PT_%s.png' %('_'.join(print_options[1])))
-        #boxtext = str('z=%.2f' %z)
-        boxtext = 'box'
-        plot_PT(title,'P(MPa)','T(K)',figname,boxtext,env_PT[2],env_PT[3])
+        zlist = " ,".join(format(x, ".2f") for x in z)
+        boxtext = str('z= [%s]' %zlist)
+        #boxtext = 'box'
+        plot_PT(title,'T(K)','P(MPa)',figname,boxtext,env_PT[2],env_PT[3])
         print ('Figure %s saved successfully' %figname)
         #*******************************************************************************
 
