@@ -20,7 +20,7 @@ print ('    ============================================\n\n\n')
 user_options = []
 user_options.append(2)
 user_options.append([8,9])
-user_options.append(3) #EoS
+user_options.append(5) #EoS
 user_options.append(1)
 user_options.append([0.3,0.7])
 user_options.append([3,3])

@@ -217,7 +217,7 @@ def dewT_successive(z,x,K,T,Torig,P,IDs,EoS,MR,kij):
 #======================================================================================
 
 #Given initial dew point, calculate PT envelope using continuation method--------------
-def PT_envelope(z,T,P,IDs,EoS,MR,kij):
+def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
     
     #Reference for this algorithm:
     #Algorithm based on other algorithm developed by Rafael Pereira and Iuri Segtovich
@@ -225,13 +225,14 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
     #https://github.com/iurisegtovich/PyTherm-applied-thermodynamics/tree/master/contents/models-and-algorithms-laboratory/LVE%20algorithms/PxT_L-V_Phase_Envelope_given_z
     
     #Initial dew point estimation, find T guess
+    Toriginal = T
     idewT = dewT_guess(z,T,P,IDs,EoS,MR,kij)
     T = idewT[0]
     x = idewT[1]
     K = idewT[2]
 
     #First Dew point calculation
-    dew = dewT_successive(z,x,K,T,200.0,P,IDs,EoS,MR,kij)
+    dew = dewT_successive(z,x,K,T,Toriginal,P,IDs,EoS,MR,kij)
     T = dew[0]
     x = dew[1]
     K = dew[2]
@@ -240,8 +241,8 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
     y = np.array(z)
     K = np.array(K)
     nc = K.shape[0]
-    lnfugcoef_v = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,y,kij, 1) #Vapor
-    lnfugcoef_l = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,-1) #Liquid
+    lnfugcoef_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij, 1,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Vapor
+    lnfugcoef_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Liquid
     K = np.exp(lnfugcoef_v-lnfugcoef_l)
     lnK = np.log(K)
     
@@ -277,8 +278,8 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
     #Stop conditions
     Plow  = 0.025 #Stop condition for low pressure
     Phigh = 30.0 #Stop condition for high pressure
-    Tmax_step = 2.0 #Max step for temperature
-    lnKmax_step = 0.03 #Max step for lnK
+    Tmax_step = 5.0 #Max step for temperature
+    lnKmax_step = 0.05 #Max step for lnK
     
     #Critical point detector
     critK = 0.05 #Reference value for approaching critical point
@@ -297,14 +298,15 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
     print 'Begin Continuation Method'
     critKpass = False
     pt = 0 #Point counter
+    pt1 = 0 #
     while P>Plow and P<Phigh: #Pressure between defined limits
         mstep = tolN+1
         itN = 0
         while (mstep>tolN and itN<maxitN): #Newton loop
         
             #Equations
-            lnfugcoef_r = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,r,kij,-phase) #Reference
-            lnfugcoef_w = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij, phase) #Incipient
+            lnfugcoef_r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Reference
+            lnfugcoef_w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Incipient
             for i in range(0,nc):
                 F[i] = (lnK[i]+lnfugcoef_w[i]-lnfugcoef_r[i])
             F[nc+1-1] = (np.sum(w-r))
@@ -313,7 +315,7 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
             
             #Jacobian
             #NC equations derivatives with respect to mole number
-            J = PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns)
+            J = PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns,en_auto,beta_auto,CR,SM)
             #print 'J',J
             
             #Solve system
@@ -321,9 +323,8 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
             #print 'J',J
             #print 'F',F
             #print 'step',step
-            #if phase ==1:
-            #    input('-------')
-            
+            if ((phase==1) and (EoS==5) and (itN<20) and pt1<20):
+                step = step/2.5
             
             #PROBABLY J IS WRONG AFTER CRITICAL POINT=====================================
             #if phase==1:
@@ -349,6 +350,13 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
             w = r*K #Adjust incipient phase
             T = np.exp(X[nc+1-1])
             P = np.exp(X[nc+2-1])
+            
+            if phase==1:
+                pt1 = pt1 + 1
+            #    print 'X',X
+            #    print 'expX',np.exp(X)
+            #    print 'T,P',T,P
+            #    input ('...')
             
             itN = itN+1
         
@@ -469,13 +477,18 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
         for i in range(0,nc):
             lnK[i] = X[i]
             K[i] = np.exp(lnK[i])
-            #if critKpass==True:
+            #if phase==1:
             #    K[i] = 1/K[i]
             #    lnK[i] = np.log(K[i])
             #    X[i] = lnK[i]
         w = r*K #Adjust incipient phase
         T = np.exp(X[nc+1-1])
         P = np.exp(X[nc+2-1])
+        #if phase==1:
+        #    print 'X',X
+        #    print 'expX',np.exp(X)
+        #    print 'T,P',T,P
+        #    input ('...at end')
         
         print 'Phase:',phase,'lnK:',lnK[0],lnK[1],'T:',T,'P:',P,'w1:',w[0],'r1:',r[0]
         wlist.append(w[0])
@@ -495,7 +508,7 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij):
 #======================================================================================
 
 #Build Jacobian to be used in continuation method--------------------------------------
-def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns):
+def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns,en_auto,beta_auto,CR,SM):
     nc = w.shape[0]
     J = np.empty((nc+2,nc+2))
     
@@ -504,10 +517,10 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns):
         for j in range(0,nc):
             w_orig = w[j]
             w[j] = w_orig + w_orig*h
-            lnphi_2 = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
+            lnphi_2 = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
             #print 'lnphi2',lnphi_2[i],lnphi_2[i],w[j],lnphi_2
             w[j] = w_orig - w_orig*h
-            lnphi_1 = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
+            lnphi_1 = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
             #print 'lnphi2-lnphi1',lnphi_2[i]-lnphi_1[i],lnphi_1[i],w[j]
             w[j] = w_orig
             J[i][j] = (lnphi_2[i]-lnphi_1[i])*w[j]/(2*w[j]*h)
@@ -523,11 +536,11 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns):
     for i in range(0,nc):
         T_orig = X[nc+1-1]
         T = np.exp(T_orig*(1+h))
-        lnphi_2w = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
-        lnphi_2r = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,r,kij,-phase)
+        lnphi_2w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_2r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
         T = np.exp(T_orig*(1-h))
-        lnphi_1w = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
-        lnphi_1r = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,r,kij,-phase)
+        lnphi_1w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_1r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
             
         J[i][nc+1-1] = ((lnphi_2w[i]-lnphi_2r[i])-(lnphi_1w[i]-lnphi_1r[i]))/(2*T_orig*h)
         T = np.exp(X[nc+1-1])
@@ -536,11 +549,11 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns):
     for i in range(0,nc):
         P_orig = X[nc+2-1]
         P = np.exp(P_orig*(1+h))
-        lnphi_2w = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
-        lnphi_2r = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,r,kij,-phase)
+        lnphi_2w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_2r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
         P = np.exp(P_orig*(1-h))
-        lnphi_1w = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,w,kij,phase)
-        lnphi_1r = eos.lnfugcoef_calc(IDs,EoS,MR,P,T,r,kij,-phase)
+        lnphi_1w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_1r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
                 
         J[i][nc+2-1] = ((lnphi_2w[i]-lnphi_2r[i])-(lnphi_1w[i]-lnphi_1r[i]))/(2*P_orig*h)
         P = np.exp(X[nc+2-1])
@@ -1053,7 +1066,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
     if env_type==1:
         #Calculate PT envelope with continuation method*********************************
         print '\nCalculating PT envelope'
-        env_PT = PT_envelope(z,T,P,IDs,EoS,MR,kij)
+        env_PT = PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM)
         print 'PT envelope calculated'
 
         print 'Creating PT report'

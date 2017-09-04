@@ -298,7 +298,7 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
     iota_max = 1
     i=0
     iteri = 0
-    tolV = 1e-6
+    tolV = 1e-6 #original 1e-6
     cond_iota = tolV+1
     deltaV = 0
     
@@ -310,10 +310,10 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
         F_obj = V_objf(nc,V,R,P,amix,bmix,T,x,X,Bcpa,iota,i,a);
         F_obj_plus = V_objf(nc,V,R,P,amix,bmix,T,x,X,Bcpa,iota+iota*1e-6,i,a);
         F_obj_minus = V_objf(nc,V,R,P,amix,bmix,T,x,X,Bcpa,iota-iota*1e-6,i,a);
-        F_obj_derivate =(F_obj_plus-F_obj_minus)/(2*iota*1e-6);
+        F_obj_derivative =(F_obj_plus-F_obj_minus)/(2*iota*1e-6);
         
         if i==0:
-            F_obj_derivate = 1e6
+            F_obj_derivative = 1e6
         
         iota_old = iota
         F_obj_old = F_obj
@@ -323,7 +323,7 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
         else:
             iota_min = iota
 
-        div = F_obj/F_obj_derivate
+        div = F_obj/F_obj_derivative
         iota_new = iota - div
 
         if iota_min<iota_new and iota_new<iota_max:
@@ -335,7 +335,7 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
         cond_iota = abs(F_obj)
 
         if i>0:
-            cond_iota = abs(F_obj/F_obj_derivate)
+            cond_iota = abs(F_obj/F_obj_derivative)
 
         i = i+1
         iota = iota2
@@ -347,19 +347,21 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
             Xf = association.frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,i,x,deltaV,T,SM)
             X = Xf
             
-        if i>300:
+        if i>500:
             cond_iota = tolV-1
             V = Vinit
             print 'VOLUME MAX ITER REACHED \n'
+            i = 0
         
         if math.isnan(V) or math.isinf(V):
-            V = Vinit+Vinit*0.001*k;
+            V = Vinit+Vinit*0.0001*k;
             iota = bmix/V;
             Xf = association.frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,i,x,deltaV,T,SM)
             X = Xf
-            cond_iota = tolV+1
-            print 'VOLUME = NAN or INF \n'
+            cond_iota = tolV+1 #original is tolV+1
+            print 'VOLUME = NAN or INF',k
             Vinit = V
+            k = k+1
     
     out = []
     out.append(V)
@@ -525,6 +527,8 @@ def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X):
     x = np.array(x)
     nc = np.shape(x)[0]
     
+    x = x/np.sum(x) #EXTRA
+    
     if nc==1:
         nc=2
     
@@ -606,6 +610,7 @@ def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X):
 #ln fugacity of component in a mixture calculation------------
 def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt):
     
+    X = np.empty(4)
     if EoS==5:
         a = a_calc(IDs,EoS,T)
         b = b_calc(IDs,EoS)
@@ -620,16 +625,73 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt):
         V = cpa[0]
         X = cpa[1]
     
-    lnfugcoef = {
-        1: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
-        2: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
-        3: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
-        4: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
-        5: lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X)
-    }.get(EoS,'NULL')
+    out = []
+    
+    if EoS==1:
+        lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        out.append(lnfugcoef)
+    elif EoS==2:
+        lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        out.append(lnfugcoef)
+    elif EoS==3:
+        lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        out.append(lnfugcoef)
+    elif EoS==4:
+        lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        out.append(lnfugcoef)
+    elif EoS==5:
+        lnfugcoef = lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X)
+        out.append(lnfugcoef)
+        out.append(V)
+    elif EoS==6:
+        lnfugcoef = lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X)
+        out.append(lnfugcoef)
+        out.append(V)
+    else:
+        out.append('NULL')
+    
+    return out
+#=============================================================
+
+#ln fugacity of component in a mixture calculation------------
+def lnfugcoef_funcFAKE(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt):
+    
+    X = np.empty(4)
+    if EoS==5:
+        a = a_calc(IDs,EoS,T)
+        b = b_calc(IDs,EoS)
+        amix = amix_calc(MR,a,x,kij)
+        bmix = bmix_calc(MR,b,x)
+        if it<1 or it>=1:
+            if phase==1:
+                V = bmix+(R*T/P)
+            else:
+                V = bmix/0.99
+        cpa = V_func(EoS,P,T,amix,bmix,b,phase,V,CR,en_auto,beta_auto,x,a,SM)
+        V = cpa[0]
+        X = cpa[1]
     
     out = []
-    out.append(lnfugcoef)
-    out.append(V)
+    
+    if EoS<5:
+        lnfugcoef = {
+            1: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            2: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            3: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            4: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        }.get(EoS,'NULL')
+        out.append(lnfugcoef)
+    
+    else:
+        lnfugcoef = {
+            1: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            2: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            3: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            4: lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase),
+            5: lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X)
+        }.get(EoS,'NULL')
+        out.append(lnfugcoef)
+        out.append(V)
+    
     return out
 #=============================================================
