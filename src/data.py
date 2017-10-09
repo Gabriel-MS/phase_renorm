@@ -278,3 +278,37 @@ def phi(ID):
         phi_ID.append(phis[i-1])
     return phi_ID
 #===========================================================================
+
+#Funciton to truncate given value and return with chosen decimal digits-----
+def truncate(f, digits):
+    return float(("{:.30f}".format(f))[:-30+digits])
+#===========================================================================
+
+#Function to open csv file with experimental T-density curve and output data---
+def loadexp():
+    with open('../input/Methanol.csv') as csvfile:
+        readCSV = csv.reader(csvfile, delimiter=';')
+        next(readCSV, None)  # skip the header
+        dens_vaps = []
+        dens_liqs = []
+        Ts = []
+        flag = False
+        for row in readCSV:
+            try:
+                if flag==False:
+                    T = float(row[0])
+                    Ts.append(T)
+                    dens_liq = float(row[2])
+                    dens_liqs.append(dens_liq)
+                else:
+                    dens_vap = float(row[2])
+                    dens_vaps.append(dens_vap)
+            except ValueError:
+                T = 999.0
+                flag=True
+    expdata = []
+    expdata.append(dens_vaps)
+    expdata.append(dens_liqs)
+    expdata.append(Ts)
+    return expdata
+#=============================================================================

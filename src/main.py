@@ -18,9 +18,9 @@ print ('    ============================================\n\n\n')
 #User menu to define custom configuration
 #user_options = menus.user()
 user_options = []
-user_options.append(2)
-user_options.append([8,9])
-user_options.append(5) #EoS
+user_options.append(1)
+user_options.append([5,5])
+user_options.append(6) #EoS
 user_options.append(1)
 user_options.append([0.3,0.7])
 user_options.append([3,3])
@@ -49,9 +49,9 @@ MR = user_options[3] #Define Mixing Rule
 z = user_options[4] #Define Feed Composition
 AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
-env_type = 1
+env_type = 5
 P = 0.05
-T = 200.0
+T = 302.0
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations

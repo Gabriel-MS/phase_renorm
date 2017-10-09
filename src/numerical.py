@@ -72,7 +72,7 @@ def trapezoidal(x,y,a,b):
 def bin_max(vec):
     vec = np.array(vec)
     size = vec.shape[0]
-    i=int(0.05*size)
+    i=int(0.02*size)
     while vec[i]<0:
         i = i-1
     pmax_cond=1
@@ -115,8 +115,7 @@ def falsi_spline(x,y,a,b,tol):
         ya = InterpolatedUnivariateSpline(x,y,k=3)(a)
         yb = InterpolatedUnivariateSpline(x,y,k=3)(b)
         c = b - yb*(a-b)/(ya-yb)
-        if it>5:
-            yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
+        yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
             
         if ya*yc<0:
             b = c

@@ -9,6 +9,7 @@ import correlations
 import association
 import numerical
 import renormalization
+import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 
 import matplotlib
@@ -824,12 +825,27 @@ def coexistence_dens(rho1,f1):
     #Spline to get chemical potential
     fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
     u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
-     
+    
+    drho = rho[n/2]-rho[n/2-1]
+    for i in range(1,n-2):
+        u[i] = (f[i+1]-f[i-1])/(2*drho)
+    u[n-1] = (f[n-1]-f[n-2])/drho
+    u[0] = (f[1]-f[0])/drho
+    
     #Calcule pressure
     P = -f+rho*u
+    a = (P[n/2-15]-P[n/2+15])/(rho[n/2-15]-rho[n/2+15])
+    b = P[n/2+15]-a*rho[n/2+15]
+    i = n/2-15
+    while i<(n/2+15):
+        P[i]=a*rho[i]+b
+        i = i + 1
+    #plt.plot(rho,P)
+    #plt.ylim(0,20)
+    #plt.show()
     
     #First derivative
-    drho = rho[1]-rho[0]
+    #drho = rho[1]-rho[0]
     dPdrho = np.diff(P)/drho
     
     #Find max and min pressure of isotherm inside binodal curve
@@ -842,6 +858,7 @@ def coexistence_dens(rho1,f1):
     min2 = min1+30
     max2 = max1-30
 
+    Pmin = Pmax+1 #method below seems always better, trying forcing it everytime
     if Pmin>Pmax:
         min1 = numerical.bin_min_seed(dPdrho,max1)
         rhomin = rho[min1]
@@ -879,6 +896,9 @@ def coexistence_dens(rho1,f1):
     Pf2rr = splev(rho,Pf2spln)
     Pf1roots = InterpolatedUnivariateSpline(rho,Pf1rr).roots()
     Pf2roots = InterpolatedUnivariateSpline(rho,Pf2rr).roots()
+
+    #print 'rhoss',rho[0],rhomax,rhomin,rho[min2]
+    #input('...')
     
     i = 0
     rho1=rho[0]-1
@@ -898,14 +918,14 @@ def coexistence_dens(rho1,f1):
     rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-3)
 
     #Solve newton-raphson system
-    tol = 1e-6
+    tol = 1e-10
     drho1 = tol+1
     drho2 = tol+1
     du = tol+1
     dP = tol+1
     drho2old = tol+1
     drho1old = tol+1
-    stop = 0.1
+    stop = 1.0
     counter = 0
     
     uspl = splrep(rho,u,k=3)
@@ -914,8 +934,12 @@ def coexistence_dens(rho1,f1):
     uspl1 = splev(rho,uspl)
     dudrho = splev(rho,uspl,der=1)
     dPdrho = splev(rho,Pspl,der=1)
-    
-    while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-3):
+    Nitmax = 1000
+    Nit = 0    
+
+    while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
+    #while (abs(drho1)>tol or abs(drho2)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
+        Nit = Nit+1
         f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
         f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
         u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
@@ -945,7 +969,7 @@ def coexistence_dens(rho1,f1):
         
         du = abs(u1-u2)
         dP = abs(P1-P2)
-        print rho1,rho2,du,dP
+        #print rho1,rho2,du,dP,drho1,drho2
         
         counter = counter+1
         drho1old = drho1
@@ -969,6 +993,7 @@ def coexistence_dens(rho1,f1):
     dens.append(P2)
     dens.append(u1)
     dens.append(u2)
+    #input('...')
     
     return dens
 #======================================================================================
@@ -982,7 +1007,7 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
     rhol = []
     Pv = []
     
-    print 'T:   rhov:   rhol:   P:'
+    print 'T:   dens_vap:   dens_liq:   P:'
     while T<=Tfinal:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         dens = coexistence_dens(ren[2],ren[0])
@@ -991,6 +1016,8 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
         rhol.append(dens[1])
         Pv.append(dens[2])
         print T,dens[0],dens[1],dens[2]
+        if abs(dens[0]-dens[1])<1.0:
+	        break
         T = T + stepT
         
     env.append(Tv)
@@ -999,6 +1026,250 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
     env.append(Pv)
     return env
 #======================================================================================  
+
+#Given initial T, using renormalization method, build P-rho envelope-------------------
+def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+    
+    print 'T:   dens_vap:   dens_liq:   P:'
+    while T<=Tfinal:
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        print T,dens[0],dens[1],dens[2]
+        if abs(dens[0]-dens[1])<1.0:
+	        break
+        T = T + stepT
+        
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    return env
+#======================================================================================  
+
+#Given initial T, using renormalization method, build P-rho envelope-------------------
+def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+    Fobj = 2.0
+    i = 0
+    
+    print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
+    while Fobj>1.0:
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj = abs(dens[0]-dens[1])
+
+        ren = renormalization.renorm(EoS,IDs,MR,T+0.001,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj_plus = abs(dens[0]-dens[1])
+
+        ren = renormalization.renorm(EoS,IDs,MR,T-0.001,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj_minus = abs(dens[0]-dens[1])
+        
+        Fobj_derivative = (Fobj_plus-Fobj_minus)/(2*T*1e-3)
+        if Fobj_derivative==0:
+            Fobj_derivative=-100
+        step = -Fobj/Fobj_derivative
+        if i==0:
+            step = 1e-6
+        print T,dens[0],dens[1],Fobj,Fobj_derivative,step
+        T = T + 0.001*step
+        i = i+1
+        
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    return env
+#======================================================================================  
+
+#Given initial T, using renormalization method, estimate L and phi parameters----------
+def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+
+    diffs = []
+    Ls = []
+    phis = []
+    Fobj_minus_old = 1e-5
+
+    tol = 1e-7
+    T = 512.6
+    phi = 1.0
+    L = 4.0e-10
+    step = tol+1
+    i = 0
+    
+    print 'T:   dens_vap:   dens_liq:   P:'
+    while math.fabs(step)>tol:
+        ren = renormalization.renorm_est(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj = math.fabs(dens[0]-dens[1])
+        #print 'central',T,dens[0],dens[1],dens[2],Fobj
+
+        ren = renormalization.renorm_est(EoS,IDs,MR,T+1,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj_plus = math.fabs(dens[0]-dens[1])
+        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
+
+        ren = renormalization.renorm_est(EoS,IDs,MR,T-1,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj_minus = math.fabs(dens[0]-dens[1])
+        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
+
+        Fobj_derivative = (Fobj_plus-Fobj_minus)/(2*phi*1e-5)
+        if i==0:
+            Fobj_derivative=1e6
+        #step = -Fobj/Fobj_derivative
+        #phi = phi + step
+        if phi<0:
+            phi = phi - step
+            phi = phi + step/1e3
+        #print 'given step',phi,step,Fobj,Fobj_derivative
+        i = i+1
+        print L,phi,Fobj,Fobj_minus,Fobj_plus
+        
+        L = L+0.1e-10
+        if Fobj_minus<Fobj_minus_old:
+            phi = phi+0.01
+            L = L-0.1e-10
+        
+        diffs.append(Fobj)
+        Ls.append(L)
+        phis.append(phi)
+
+        Fobj_old = Fobj
+        Fobj_plus_old = Fobj_minus
+        Fobj_minus_old = Fobj_plus
+
+        #if L>9e-10:
+        #    phi = phi + 0.1
+        #    L = 1e-10
+        
+        #if phi>8.0:
+        #    phi = 1.0
+        #    L = L + 0.1e-10
+        
+        #raw_input('...')
+        
+        
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    return env
+#======================================================================================  
+
+#Given initial T, using renormalization method, estimate L and phi parameters----------
+def PV_estimate_dens_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+    rhol = []
+    exp_dens_liq = []
+    exp_dens_vap = []
+    
+    #Extracting experimental data
+    expdata = data.loadexp()
+    rho_liq_exp = np.array(expdata[1])
+    rho_vap_exp = np.array(expdata[0])
+    T_exp = np.array(expdata[2])
+    size = T_exp.size
+    
+    #Selecting experimental data
+    #Select temperatures
+    Texps = []
+    Tc = T_exp[size-1]
+    for i in range(0,10):
+        Tr = 0.95
+        Texp = data.truncate(Tr*Tc+i,1)
+        Texps.append(Texp)
+    for i in range(0,10):
+        Tr = 0.99
+        Texp = data.truncate(Tr*Tc+0.1*i,1)
+        Texps.append(Texp)
+    for i in range(0,10):
+        Texp = data.truncate(Tc-0.9+0.1*i,1)
+        Texps.append(Texp)
+    #Find position of temperatures in extracted vector and select densities
+    Texps = np.array(Texps)
+    size2 = Texps.size
+    for k in range(0,size2):
+        i, = np.where(T_exp==Texps[k])
+        exp_dens_liq.append(rho_liq_exp[i])
+        exp_dens_vap.append(rho_vap_exp[i])
+    rho_l_exp = np.array(exp_dens_liq)
+    rho_v_exp = np.array(exp_dens_vap)
+        
+    #Calculating data with actual parameters
+    print 'T:   rhov:   rhol:   P:'
+    for i in range(0,size-1):
+        T = Texps[i]
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        print T,dens[0],dens[1],dens[2]
+        
+    #Calculate Objective Function
+    rho_l_calc = np.array(rhol)
+    Fobj = np.sum(np.power((rho_l_exp-rho_l_calc),2)/rho_l_exp)
+    print Fobj
+    
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    return env
+#======================================================================================
 
 #Report PV envelope--------------------------------------------------------------------
 def report_PV(data,options,title,print_options):
@@ -1085,15 +1356,22 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         print ('Figure %s saved successfully' %figname)
         #*******************************************************************************
 
-    if env_type==2:
+    if env_type==2 or env_type==3 or env_type==4 or env_type==5:
         #Calculate pure PV envelope*****************************************************
         nd = 400
         nx = 200
         n = 6
-        finalT = 520.0
-        stepT = 2.5
+        finalT = 530.0
+        stepT = 0.5
         print '\nCalculating PV envelope'
-        env_PV = PV_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        if env_type==2:
+            env_PV = PV_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        if env_type==3:
+            env_PV = PV_estimate_dens_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        if env_type==4:
+            env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        if env_type==5:
+            env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         print 'PV envelope calculated'
 
         print 'Creating pure PV report'
@@ -1108,7 +1386,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         print ('Figure %s saved successfully' %figname)
         #*******************************************************************************
 
-    if env_type==3:
+    if env_type==6:
         #Calculate Pxy envelope*********************************************************
         print '\nCalculating Pxy envelope'
         env_pxy = Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM)
