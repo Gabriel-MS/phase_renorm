@@ -139,7 +139,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         if r==0:
             rhov.append(rho) #rho vector is always the same
         r=1
-        
+
+        xv.append(x[0])
+        fmat.append(fv)
+
         x[0] = x[0]+stepx
         
     renorm_out = []
@@ -147,7 +150,32 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     renorm_out.append(x0v)
     renorm_out.append(rhov)
     renorm_out.append(fresv)
+    if nc>1: #If binary mixture, report calculated values
+        report_renorm_bin(rhov,xv,fmat,nx,nd)
     return renorm_out
+#=========================================================================================
+
+#Output renorm values of binary mixtures--------------------------------------------------
+def report_renorm_bin(rhov,xv,fmat,nx,nd):
+    title = 'renormalized_helm.temp'
+    savedir = str('%s' %title)
+    with open(savedir,'w') as file:
+        dv = str("")
+        for j in range(0,nd):
+            d1 = str(round(rhov[j],9))
+            dv = dv+';'+d1
+        file.write(dv)
+        file.write('\n')
+        
+        for i in range(0,nx):
+            x = str(round(xv[i],9))
+            f = fmat[i]
+            lin1 = x
+            for j in range(0,nd):
+                f1 = str(round(f[j],9))
+                lin1 = lin1+';'+f1
+            file.write(lin1)
+            file.write('\n')
 #=========================================================================================
 
 #Calculates Helmholtz repulsive forces----------------------------------------------------
