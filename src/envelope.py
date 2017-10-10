@@ -634,7 +634,7 @@ def plot_PT(title,xtitle,ytitle,figname,boxtext,xdata,ydata):
 #======================================================================================
 
 #Given T, iterate over specified x to find y and P-------------------------------------
-def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM):
+def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     
     Pvec = []
     xvec = []
@@ -1388,8 +1388,18 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
     if env_type==6:
         #Calculate Pxy envelope*********************************************************
+
+        if EoS==2 or EoS==4 or EoS==6:
+            print '\nCalculating renormalized helmholtz energy surface'
+            nd = 50
+            nx = 200
+            n = 2
+            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+            input('...')
+            print '\nHelmholtz Energy Surface calculated and reported'
+
         print '\nCalculating Pxy envelope'
-        env_pxy = Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM)
+        env_pxy = Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data)
         print 'Pxy envelope calculated'
 
         print 'Creating Pxy report'

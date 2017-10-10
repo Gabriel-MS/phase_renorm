@@ -34,7 +34,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     Tr = T/np.array(Tc)
     
     #Main loop parameters
-    x = np.array([0.0001,0.9999])
+    x = np.array([0.001,0.999])
     stepx = (1/float(nx)) #Step to calculate change
     k = 0               #Vector fill counter
     i = 1               #Main loop counter
@@ -49,12 +49,17 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     df = np.empty((nd))             #Changes in helmholtz energy density vector
     f_orig = np.empty((nd))         #Unmodified Helmholtz energy density vector
     X = np.ones((4*nc))
+    fmat = []
+    umat = []
+    ures = np.empty((nd))
+    uv = []
     
     if nc==1:
         X = np.ones((8))
     
     #Main loop*************************************
     while x[0]<1.0:
+        print x[0]
         if x[0]==0.006: #after first step
             x[0]=0.005
             x[1]=1-x[0]
@@ -140,8 +145,16 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
             rhov.append(rho) #rho vector is always the same
         r=1
 
-        xv.append(x[0])
-        fmat.append(fv)
+        fmat.append(f)
+
+        if nc>1:
+            drho = rho[nd/2]-rho[nd/2-1]
+            for i in range(1,nd-2):
+                ures[i] = (fres[i+1]-fres[i-1])/(2*drho)
+            ures[nd-1] = (fres[nd-1]-fres[nd-2])/drho
+            ures[0] = (fres[1]-fres[0])/drho
+            uv.append(ures)
+            umat.append(uv)
 
         x[0] = x[0]+stepx
         
@@ -150,25 +163,90 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     renorm_out.append(x0v)
     renorm_out.append(rhov)
     renorm_out.append(fresv)
+    renorm_out.append(fmat)
+    renorm_out.append(umat)
     if nc>1: #If binary mixture, report calculated values
-        report_renorm_bin(rhov,xv,fmat,nx,nd)
+        print 'before report'
+        report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS)
     return renorm_out
 #=========================================================================================
 
 #Output renorm values of binary mixtures--------------------------------------------------
-def report_renorm_bin(rhov,xv,fmat,nx,nd):
-    title = 'renormalized_helm.temp'
+def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
+
+    x = x0v
+    x1 = np.array(menus.flatten(x))
+    x2 = 1.0-x1
+    rhob = rhov[0]
+    f2d = np.empty((nx,nd))
+    rho = np.empty((nx,nd))
+    dfdrhob = np.empty((nx,nd))
+    dfdx1 = np.empty((nx,nd))
+    dfdx2 = np.empty((nx,nd))
+    rho1 = np.empty((nx,nd))
+    rho2 = np.empty((nx,nd))
+    u1mat = np.empty((nx,nd))
+    u2mat = np.empty((nx,nd))
+
+    bmix = np.empty((nx))
+    b = eos.b_calc(IDs,EoS)
+    b1 = b[0]
+    b2 = b[1]
+    for i in range(0,nx):
+        bmix[i] = eos.bmix_calc(MR,b,x[i])
+
+    for i in range(0,nx):
+        f = np.array(fmat[i])
+        for j in range(0,nd):
+            f2d[i][j] = f[j]
+            rho[i][j] = rhob[j]/bmix[i]
+    
+    for i in range(0,nx):
+        for j in range(0,nd):
+            rho1[i][j] = x1[i]*rho[i][j]
+            rho2[i][j] = x2[i]*rho[i][j]
+
+    for i in range(0,nx):
+        for j in range(0,nd-1):
+            dfdrhob[i][j] = (f2d[i][j+1]-f2d[i][j])/(rhob[j+1]-rhob[j])
+        dfdrhob[i][nd-1] = (f2d[i][nd-1]-f2d[i][nd-2])/(rhob[nd-1]-rhob[nd-2])
+
+    for i in range(0,nx-1):
+        for j in range(0,nd):
+            dfdx1[i][j] = (f2d[i+1][j]-f2d[i][j])/(x1[i+1]-x1[i])
+        dfdx1[nx-1][j] = (f2d[nx-1][j]-f2d[nx-2][j])/(x1[nx-1]-x1[nx-2])
+
+    for i in range(0,nx-1):
+        for j in range(0,nd):
+            dfdx2[i][j] = (f2d[i+1][j]-f2d[i][j])/(x2[i+1]-x2[i])
+        dfdx2[nx-1][j] = (f2d[nx-1][j]-f2d[nx-2][j])/(x2[nx-1]-x2[nx-2])
+
+    for i in range(0,nx):
+        for j in range(0,nd):
+            u1mat[i][j] = dfdrhob[i][j]*b1+dfdx2[i][j]*(0-rho2[i][j])/(rho[i][j]*rho[i][j])
+            u2mat[i][j] = dfdrhob[i][j]*b2+dfdx1[i][j]*(0-rho1[i][j])/(rho[i][j]*rho[i][j])
+
+    #u1res_mat = RectBivariateSpline(x,rhob,u1mat)
+    #u2res_mat = RectBivariateSpline(x,rhob,u2mat)
+
+    u1mat_r = []
+    u2mat_r = []
+    for i in range(0,nx):
+        u1mat_r.append(u1mat[i])
+        u2mat_r.append(u2mat[i])
+
+    title = 'ren_f.tmp'
     savedir = str('%s' %title)
     with open(savedir,'w') as file:
         dv = str("")
         for j in range(0,nd):
-            d1 = str(round(rhov[j],9))
+            d1 = str(round(rhob[j],9))
             dv = dv+';'+d1
         file.write(dv)
         file.write('\n')
         
         for i in range(0,nx):
-            x = str(round(xv[i],9))
+            x = str(round(x0v[i],9))
             f = fmat[i]
             lin1 = x
             for j in range(0,nd):
@@ -176,7 +254,66 @@ def report_renorm_bin(rhov,xv,fmat,nx,nd):
                 lin1 = lin1+';'+f1
             file.write(lin1)
             file.write('\n')
+
+    title = 'u1.tmp'
+    savedir = str('%s' %title)
+    with open(savedir,'w') as file:
+        dv = str("")
+        for j in range(0,nd):
+            d1 = str(round(rhob[j],9))
+            dv = dv+';'+d1
+        file.write(dv)
+        file.write('\n')
+        
+        for i in range(0,nx):
+            x = str(round(x0v[i],9))
+            u = u1mat_r[i]
+            lin1 = x
+            for j in range(0,nd):
+                u1 = str(round(u[j],9))
+                lin1 = lin1+';'+u1
+            file.write(lin1)
+            file.write('\n')
+
+    title = 'u2.tmp'
+    savedir = str('%s' %title)
+    with open(savedir,'w') as file:
+        dv = str("")
+        for j in range(0,nd):
+            d1 = str(round(rhob[j],9))
+            dv = dv+';'+d1
+        file.write(dv)
+        file.write('\n')
+        
+        for i in range(0,nx):
+            x = str(round(x0v[i],9))
+            u = u2mat_r[i]
+            lin1 = x
+            for j in range(0,nd):
+                u2 = str(round(u[j],9))
+                lin1 = lin1+';'+u2
+            file.write(lin1)
+            file.write('\n')
+
+
 #=========================================================================================
+
+#Calculates Fugacity coefficient of a component in a mixtures with renormalization-------
+def fugacity_renormalized(phase, x, P, bmix, T, V, ures_Bspln):
+
+    #Calculate ures
+    ures = ures_Bspln(x,(1/V)*bmix) #bmix is here because in the spline, rho is adimensional
+
+    #Calculate Z
+    Z = P*V/(R*T)
+
+    #Calculate phi
+    lnphi = ures/R/T - np.log(Z)
+    phi = np.exp(lnphi)
+
+    return phi
+#=========================================================================================
+
 
 #Calculates Helmholtz repulsive forces----------------------------------------------------
 def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):

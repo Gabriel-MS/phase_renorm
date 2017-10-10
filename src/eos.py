@@ -611,7 +611,7 @@ def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X):
 def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt):
     
     X = np.empty(4)
-    if EoS==5:
+    if EoS==5 or EoS==6:
         a = a_calc(IDs,EoS,T)
         b = b_calc(IDs,EoS)
         amix = amix_calc(MR,a,x,kij)
