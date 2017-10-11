@@ -5,9 +5,9 @@ import eos
 import association
 import math
 import numerical
-
 import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
+from scipy.interpolate import RectBivariateSpline
 
 R = 8.314462175e-6 #m3.MPa/K/mol
 NA = 6.023e23      #Avogadro Number
@@ -48,8 +48,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     Tv = []                         #Temperature values to export
     df = np.empty((nd))             #Changes in helmholtz energy density vector
     f_orig = np.empty((nd))         #Unmodified Helmholtz energy density vector
+    rhob = []                       #Adimensional density vector
     X = np.ones((4*nc))
     fmat = []
+    fmatres = []
     umat = []
     ures = np.empty((nd))
     uv = []
@@ -62,7 +64,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         print x[0]
         if x[0]==0.006: #after first step
             x[0]=0.005
-            x[1]=1-x[0]
+        x[1]=1-x[0]
         
         if nc==1:
             x[0] = 0.999999
@@ -130,54 +132,49 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         #Add original attractive forces
         f = f - amix*(rho**2)
         
-        #Store residual value of f, calculate helmholtz energy density adding ideal gas energy
-        fres = f
-        f = f + rho*R*T*(np.log(rho)-1)
+        #Store residual value of f
+        fres = f - rho*R*T*(np.log(rho)-1)
+        #f = f + rho*R*T*(np.log(rho)-1) #Already accounting ideal gas energy
 
-        if(EoS==6):
-			f = fres
+        #if(EoS==6):
+        #    f = fres
         
         fv.append(f)
         fresv.append(fres)
         x0v.append(x[0])
         
         if r==0:
-            rhov.append(rho) #rho vector is always the same
+            rhob.append(rho*bmix) #rhob vector is always the same
         r=1
 
         fmat.append(f)
-
-        if nc>1:
-            drho = rho[nd/2]-rho[nd/2-1]
-            for i in range(1,nd-2):
-                ures[i] = (fres[i+1]-fres[i-1])/(2*drho)
-            ures[nd-1] = (fres[nd-1]-fres[nd-2])/drho
-            ures[0] = (fres[1]-fres[0])/drho
-            uv.append(ures)
-            umat.append(uv)
+        fmatres.append(fres)
 
         x[0] = x[0]+stepx
         
     renorm_out = []
     renorm_out.append(fv)
     renorm_out.append(x0v)
-    renorm_out.append(rhov)
+    renorm_out.append(rhob)
     renorm_out.append(fresv)
     renorm_out.append(fmat)
     renorm_out.append(umat)
     if nc>1: #If binary mixture, report calculated values
         print 'before report'
-        report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS)
+        ren_u = report_renorm_bin(rhob,x0v,fmatres,nx,nd,MR,IDs,EoS)
+        renorm_out.append(ren_u)
     return renorm_out
 #=========================================================================================
 
 #Output renorm values of binary mixtures--------------------------------------------------
-def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
+def report_renorm_bin(rhov,x0v,fm,nx,nd,MR,IDs,EoS):
 
+    rep = []
     x = x0v
     x1 = np.array(menus.flatten(x))
     x2 = 1.0-x1
     rhob = rhov[0]
+    xb = np.empty((2))
     f2d = np.empty((nx,nd))
     rho = np.empty((nx,nd))
     dfdrhob = np.empty((nx,nd))
@@ -193,10 +190,12 @@ def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
     b1 = b[0]
     b2 = b[1]
     for i in range(0,nx):
-        bmix[i] = eos.bmix_calc(MR,b,x[i])
+        xb[0] = x1[i]
+        xb[1] = x2[i]
+        bmix[i] = eos.bmix_calc(MR,b,xb)
 
     for i in range(0,nx):
-        f = np.array(fmat[i])
+        f = np.array(fm[i])
         for j in range(0,nd):
             f2d[i][j] = f[j]
             rho[i][j] = rhob[j]/bmix[i]
@@ -207,18 +206,25 @@ def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
             rho2[i][j] = x2[i]*rho[i][j]
 
     for i in range(0,nx):
-        for j in range(0,nd-1):
-            dfdrhob[i][j] = (f2d[i][j+1]-f2d[i][j])/(rhob[j+1]-rhob[j])
+        dfdrhob[i][0] = (f2d[i][1]-f2d[i][0])/(rhob[1]-rhob[0])
+        for j in range(1,nd-1):
+            dfdrhob[i][j] = (f2d[i][j+1]-f2d[i][j-1])/(rhob[j+1]-rhob[j-1])
         dfdrhob[i][nd-1] = (f2d[i][nd-1]-f2d[i][nd-2])/(rhob[nd-1]-rhob[nd-2])
 
     for i in range(0,nx-1):
         for j in range(0,nd):
-            dfdx1[i][j] = (f2d[i+1][j]-f2d[i][j])/(x1[i+1]-x1[i])
+            if i!=0:
+                dfdx1[i][j] = (f2d[i+1][j]-f2d[i-1][j])/(x1[i+1]-x1[i-1])
+            else:
+                dfdx1[0][j] = (f2d[1][j]-f2d[0][j])/(x1[1]-x1[0])
         dfdx1[nx-1][j] = (f2d[nx-1][j]-f2d[nx-2][j])/(x1[nx-1]-x1[nx-2])
 
     for i in range(0,nx-1):
         for j in range(0,nd):
-            dfdx2[i][j] = (f2d[i+1][j]-f2d[i][j])/(x2[i+1]-x2[i])
+            if i!=0:
+                dfdx2[i][j] = (f2d[i+1][j]-f2d[i-1][j])/(x2[i+1]-x2[i-1])
+            else:
+                dfdx2[0][j] = (f2d[1][j]-f2d[0][j])/(x2[1]-x2[0])
         dfdx2[nx-1][j] = (f2d[nx-1][j]-f2d[nx-2][j])/(x2[nx-1]-x2[nx-2])
 
     for i in range(0,nx):
@@ -226,8 +232,8 @@ def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
             u1mat[i][j] = dfdrhob[i][j]*b1+dfdx2[i][j]*(0-rho2[i][j])/(rho[i][j]*rho[i][j])
             u2mat[i][j] = dfdrhob[i][j]*b2+dfdx1[i][j]*(0-rho1[i][j])/(rho[i][j]*rho[i][j])
 
-    #u1res_mat = RectBivariateSpline(x,rhob,u1mat)
-    #u2res_mat = RectBivariateSpline(x,rhob,u2mat)
+    u1res_mat = RectBivariateSpline(x,rhob,u1mat)
+    u2res_mat = RectBivariateSpline(x,rhob,u2mat)
 
     u1mat_r = []
     u2mat_r = []
@@ -247,7 +253,7 @@ def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
         
         for i in range(0,nx):
             x = str(round(x0v[i],9))
-            f = fmat[i]
+            f = fm[i]
             lin1 = x
             for j in range(0,nd):
                 f1 = str(round(f[j],9))
@@ -295,23 +301,36 @@ def report_renorm_bin(rhov,x0v,fmat,nx,nd,MR,IDs,EoS):
             file.write(lin1)
             file.write('\n')
 
-
+    rep.append(u1res_mat)
+    rep.append(u2res_mat)
+    return rep
 #=========================================================================================
 
 #Calculates Fugacity coefficient of a component in a mixtures with renormalization-------
-def fugacity_renormalized(phase, x, P, bmix, T, V, ures_Bspln):
+def lnfugcoef_renorm(P,T,x,phase,V,r_data,bmix):
+
+    rhob = (1/V)*bmix
+    size = x.shape[0]
+    ures = np.empty((size))
 
     #Calculate ures
-    ures = ures_Bspln(x,(1/V)*bmix) #bmix is here because in the spline, rho is adimensional
+    uspln = r_data[6]
+    u1res_Bspln = uspln[0]
+    u2res_Bspln = uspln[1]
+    u1res = u1res_Bspln(x[0],rhob) #bmix is here because rho is adimensional inside the spline
+    u2res = u2res_Bspln(x[0],rhob) #bmix is here because rho is adimensional inside the spline, IT REALLY IS x[0] HERE
+    ures[0] = u1res
+    ures[1] = u2res
 
     #Calculate Z
     Z = P*V/(R*T)
 
     #Calculate phi
     lnphi = ures/R/T - np.log(Z)
-    phi = np.exp(lnphi)
+    #print 'ures=',ures,x[0],x[1],rhob
+    #input('...')
 
-    return phi
+    return lnphi
 #=========================================================================================
 
 
@@ -332,9 +351,10 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
         f_CPA1 = np.log(X)-0.5*X+0.5
         f_CPA = np.dot(np.dot(one4c,x),f_CPA1)
     
+    #Considering ideal gas energy contribution
     f = {
-        2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix), #SRK+RG
-        4: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix), #PR+RG
+        2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #SRK+RG
+        4: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #PR+RG
         6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
     }.get(EoS,'NULL')
     

@@ -242,8 +242,8 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
     y = np.array(z)
     K = np.array(K)
     nc = K.shape[0]
-    lnfugcoef_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij, 1,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Vapor
-    lnfugcoef_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Liquid
+    lnfugcoef_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij, 1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Vapor
+    lnfugcoef_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Liquid
     K = np.exp(lnfugcoef_v-lnfugcoef_l)
     lnK = np.log(K)
     
@@ -306,8 +306,8 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
         while (mstep>tolN and itN<maxitN): #Newton loop
         
             #Equations
-            lnfugcoef_r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Reference
-            lnfugcoef_w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0] #Incipient
+            lnfugcoef_r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Reference
+            lnfugcoef_w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Incipient
             for i in range(0,nc):
                 F[i] = (lnK[i]+lnfugcoef_w[i]-lnfugcoef_r[i])
             F[nc+1-1] = (np.sum(w-r))
@@ -518,10 +518,10 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns,en_auto,beta_auto,CR,SM):
         for j in range(0,nc):
             w_orig = w[j]
             w[j] = w_orig + w_orig*h
-            lnphi_2 = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+            lnphi_2 = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
             #print 'lnphi2',lnphi_2[i],lnphi_2[i],w[j],lnphi_2
             w[j] = w_orig - w_orig*h
-            lnphi_1 = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+            lnphi_1 = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
             #print 'lnphi2-lnphi1',lnphi_2[i]-lnphi_1[i],lnphi_1[i],w[j]
             w[j] = w_orig
             J[i][j] = (lnphi_2[i]-lnphi_1[i])*w[j]/(2*w[j]*h)
@@ -537,11 +537,11 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns,en_auto,beta_auto,CR,SM):
     for i in range(0,nc):
         T_orig = X[nc+1-1]
         T = np.exp(T_orig*(1+h))
-        lnphi_2w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
-        lnphi_2r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_2w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
+        lnphi_2r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
         T = np.exp(T_orig*(1-h))
-        lnphi_1w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
-        lnphi_1r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_1w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
+        lnphi_1r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
             
         J[i][nc+1-1] = ((lnphi_2w[i]-lnphi_2r[i])-(lnphi_1w[i]-lnphi_1r[i]))/(2*T_orig*h)
         T = np.exp(X[nc+1-1])
@@ -678,10 +678,10 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
         #Iteration Kx start--------------------------------------------------
         errK = tolK+1 #Force enter iteration
         while errK>tolK:
-            func_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,Vl,en_auto,beta_auto,CR,SM,it,pt) #Liquid
+            func_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,Vl,en_auto,beta_auto,CR,SM,it,pt,r_data) #Liquid
             lnfugcoef_l = func_l[0]
             Vl = func_l[1]
-            func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt) #Vapor
+            func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt,r_data) #Vapor
             lnfugcoef_v = func_v[0]
             Vv = func_v[1]
             K = np.exp(lnfugcoef_l-lnfugcoef_v)
@@ -698,7 +698,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
             while erry>toly or ity<2:
                 y = Kx/sumKx
                 sumKxold = sumKx
-                func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt) #Vapor
+                func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt,r_data) #Vapor
                 lnfugcoef_v = func_v[0]
                 Vv = func_v[1]
                 K = np.exp(lnfugcoef_l-lnfugcoef_v)
@@ -1391,12 +1391,13 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
         if EoS==2 or EoS==4 or EoS==6:
             print '\nCalculating renormalized helmholtz energy surface'
-            nd = 50
+            nd = 400
             nx = 200
-            n = 2
+            n = 9
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-            input('...')
             print '\nHelmholtz Energy Surface calculated and reported'
+        else:
+            r_data = 0
 
         print '\nCalculating Pxy envelope'
         env_pxy = Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data)

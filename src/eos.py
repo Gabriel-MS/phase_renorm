@@ -3,7 +3,9 @@ import data
 import numpy as np
 import math
 import association
+import menus
 import numerical
+import renormalization
 
 #Ideal gas constant
 R = 8.314462175e-6 #m3.MPa/K/mol
@@ -88,7 +90,7 @@ def a_calc(IDs,EoS,T):
         3: ac*alfa, #PR
         4: ac*alfa, #PR+RG
         5: ac*alfa, #CPA
-        6: ac*alfa #CPA
+        6: ac*alfa #CPA+RG
     }.get(EoS,'NULL')
     
     return a
@@ -377,7 +379,8 @@ def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
         2: V_calc(EoS,P,T,amix,bmix,phase),
         3: V_calc(EoS,P,T,amix,bmix,phase),
         4: V_calc(EoS,P,T,amix,bmix,phase),
-        5: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
+        5: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM),
+        6: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
     }.get(EoS,'NULL')
 
     return V
@@ -603,12 +606,13 @@ def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X):
     u_CPA = u_SRK + u_assoc
     
     lnfugcoef = u_CPA - np.log(Z_CPA)
+    #print 'ures=',u_CPA*R*T,Z_CPA,R,T
     
     return lnfugcoef
 #=============================================================
 
 #ln fugacity of component in a mixture calculation------------
-def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt):
+def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_data):
     
     X = np.empty(4)
     if EoS==5 or EoS==6:
@@ -644,12 +648,15 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt):
         out.append(lnfugcoef)
         out.append(V)
     elif EoS==6:
-        lnfugcoef = lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X)
+        lnfugcoef = renormalization.lnfugcoef_renorm(P,T,x,phase,V,r_data,bmix)
         out.append(lnfugcoef)
         out.append(V)
     else:
         out.append('NULL')
     
+
+    #print x,lnfugcoef,(1/V)*bmix,phase
+    #input('...')
     return out
 #=============================================================
 
