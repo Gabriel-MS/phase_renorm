@@ -89,7 +89,7 @@ def bin_max(vec):
 def bin_min(vec):
     vec = np.array(vec)
     size = vec.shape[0]
-    i=int(0.95*size)
+    i=int(0.90*size)
     pmin_cond=1
     while pmin_cond>0:
         pmin_cond = vec[i]

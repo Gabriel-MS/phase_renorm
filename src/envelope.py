@@ -9,7 +9,6 @@ import correlations
 import association
 import numerical
 import renormalization
-import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 
 import matplotlib
@@ -1092,6 +1091,7 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        print 'REN ok'
         dens = coexistence_dens(ren[2],ren[0])
         Tv.append(T)
         rhov.append(dens[0])

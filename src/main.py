@@ -19,7 +19,7 @@ print ('    ============================================\n\n\n')
 #user_options = menus.user()
 user_options = []
 user_options.append(1)
-user_options.append([7,7])
+user_options.append([4,4])
 user_options.append(6) #EoS
 user_options.append(1)
 user_options.append([0.3,0.7])
@@ -51,7 +51,7 @@ AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
 env_type = 5
 P = 0.05
-T = 512.0
+T = 423.0
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations
@@ -60,8 +60,8 @@ auto = association.CPA_auto(AR,nc,IDs)
 en_auto = auto[0]
 beta_auto = auto[1]
 #CPA cross-association configurations
-SM = np.array([[1, 0],
-               [0, 1]])
+SM = np.array([[1, 1],
+               [1, 1]])
 R = 8.314462175e-6 #m3.MPa/K/mol
 
 envelope.calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_auto,beta_auto,SM,env_type)

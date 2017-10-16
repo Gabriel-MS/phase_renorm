@@ -89,13 +89,12 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
             if k==0:
                 rho[0] = 1e-6
             if EoS==6:
-                Xf = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
-                X = Xf
+                X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
             f[k] = np.array(helm_rep(EoS,R,T,rho[k],amix,bmix,X,x,nc))   #Helmholtz energy density
             f_orig[k] = f[k]                                #Initial helmholtz energy density
             
             #Subtract attractive forces (due long range correlations)
-            f[k] = f[k] + amix*(rho[k]**2)
+            f[k] = f[k] + 0.5*amix*(rho[k]**2)
             k = k+1
             
             
@@ -103,13 +102,13 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         rho = rho*bmix
         f = f*bmix*bmix/amix
         T = T*bmix*R/amix
-    
 
         rho1 = rho.flatten()
 
         #Main loop****************************************************************
         i = 1
         while i<=n:
+            #print i
             #K = kB*T/((2**(3*i))*(L**3))
             K = T/(2**(3*i))/((L**3)/bmix*6.023e23)
             
@@ -134,7 +133,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         T = T/bmix/R*amix
         
         #Add original attractive forces
-        f = f - amix*(rho**2)
+        f = f - 0.5*amix*(rho**2)
         
         #Store residual value of f
         fres = f - rho*R*T*(np.log(rho)-1)
@@ -465,7 +464,7 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
                     one4c[i][j] = 0
         f_CPA1 = np.log(X)-0.5*X+0.5
         f_CPA = np.dot(np.dot(one4c,x),f_CPA1)
-    
+
     #Considering ideal gas energy contribution
     f = {
         2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #SRK+RG
