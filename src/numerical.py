@@ -1,7 +1,7 @@
 import numpy as np
 import menus
 import math
-from scipy.interpolate import interp1d, InterpolatedUnivariateSpline
+from scipy.interpolate import interp1d, InterpolatedUnivariateSpline, splrep, splev, UnivariateSpline
 
 #Calculate roots of given coefficients for volume------------------------------------------
 def cubic_v_roots(coef,R,T,P):
@@ -79,6 +79,9 @@ def bin_max(vec):
     while pmax_cond>0:
         pmax_cond = vec[i]
         i=i+1
+        if i==size:
+            i=size+1
+            break
     return i-1
 #==========================================================================================
 
@@ -111,12 +114,26 @@ def falsi_spline(x,y,a,b,tol):
     it = 0
     a0 = a
     b0 = b
+    #spl = splrep(x,y,k=3)
+    #spl = UnivariateSpline(x,y)
+    #spl.set_smoothing_factor(0.5)
     while abs(yc)>tol:
         ya = InterpolatedUnivariateSpline(x,y,k=3)(a)
         yb = InterpolatedUnivariateSpline(x,y,k=3)(b)
         c = b - yb*(a-b)/(ya-yb)
         yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
-            
+        
+        #ya = splev(a,spl)
+        #yb = splev(b,spl)
+        #c = b - yb*(a-b)/(ya-yb)
+        #yc = splev(c,spl)
+        
+        #ya = spl(a)
+        #yb = spl(b)
+        #c = b - yb*(a-b)/(ya-yb)
+        #yc = spl(c)
+        #print c,yc,a,b,ya,yb
+    
         if ya*yc<0:
             b = c
         else:
@@ -127,6 +144,7 @@ def falsi_spline(x,y,a,b,tol):
             yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
             break
         it = it+1
+    #input('...')
     return c
 #==========================================================================================
 

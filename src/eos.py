@@ -363,6 +363,7 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
             cond_iota = tolV+1 #original is tolV+1
             print 'VOLUME = NAN or INF',k
             Vinit = V
+            cond_iota = tolV-1
             k = k+1
     
     out = []
@@ -372,16 +373,25 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
 #=============================================================
 
 #Molar volume calculation-------------------------------------
-def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
+def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM,r_data):
 
-    V = {
-        1: V_calc(EoS,P,T,amix,bmix,phase),
-        2: V_calc(EoS,P,T,amix,bmix,phase),
-        3: V_calc(EoS,P,T,amix,bmix,phase),
-        4: V_calc(EoS,P,T,amix,bmix,phase),
-        5: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM),
-        6: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
-    }.get(EoS,'NULL')
+    if EoS==6:
+        V = {
+            1: V_calc(EoS,P,T,amix,bmix,phase),
+            2: V_calc(EoS,P,T,amix,bmix,phase),
+            3: V_calc(EoS,P,T,amix,bmix,phase),
+            4: V_calc(EoS,P,T,amix,bmix,phase),
+            5: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM),
+            6: renormalization.volume_renorm(phase,x[0],P,bmix,R,T,r_data)
+        }.get(EoS,'NULL')
+    else:
+        V = {
+            1: V_calc(EoS,P,T,amix,bmix,phase),
+            2: V_calc(EoS,P,T,amix,bmix,phase),
+            3: V_calc(EoS,P,T,amix,bmix,phase),
+            4: V_calc(EoS,P,T,amix,bmix,phase),
+            5: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
+        }.get(EoS,'NULL')
 
     return V
 #=============================================================
@@ -625,7 +635,7 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
                 V = bmix+(R*T/P)
             else:
                 V = bmix/0.99
-        cpa = V_func(EoS,P,T,amix,bmix,b,phase,V,CR,en_auto,beta_auto,x,a,SM)
+        cpa = V_func(EoS,P,T,amix,bmix,b,phase,V,CR,en_auto,beta_auto,x,a,SM,r_data)
         V = cpa[0]
         X = cpa[1]
     
@@ -654,9 +664,8 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
     else:
         out.append('NULL')
     
-
-    #print x,lnfugcoef,(1/V)*bmix,phase
-    #input('...')
+    #print x,lnfugcoef,(1/V)*bmix,V,phase
+    #raw_input('...')
     return out
 #=============================================================
 

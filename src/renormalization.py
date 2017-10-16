@@ -49,8 +49,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     df = np.empty((nd))             #Changes in helmholtz energy density vector
     f_orig = np.empty((nd))         #Unmodified Helmholtz energy density vector
     rhob = []                       #Adimensional density vector
+    u = np.empty((nd))
     X = np.ones((4*nc))
     fmat = []
+    Pmatv = np.empty((nx,nd))
     fmatres = []
     umat = []
     ures = np.empty((nd))
@@ -60,8 +62,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         X = np.ones((8))
     
     #Main loop*************************************
+    count = 0
     while x[0]<1.0:
-        print x[0]
+        if nc>1:
+            print x[0]
         if x[0]==0.006: #after first step
             x[0]=0.005
         x[1]=1-x[0]
@@ -105,7 +109,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
 
         #Main loop****************************************************************
         i = 1
-        while i<n:
+        while i<=n:
             #K = kB*T/((2**(3*i))*(L**3))
             K = T/(2**(3*i))/((L**3)/bmix*6.023e23)
             
@@ -145,20 +149,38 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         
         if r==0:
             rhob.append(rho*bmix) #rhob vector is always the same
+            rhov.append(rho) #in case the calculation is done for one-component
         r=1
+
+        drho = rho[int(nd/2)]-rho[int(nd/2)-1]
+        for i in range(1,nd-2):
+            u[i] = (f[i+1]-f[i-1])/(2*drho)
+        u[nd-1] = (f[nd-1]-f[nd-2])/drho
+        u[0] = (f[1]-f[0])/drho
+
+        P = -f+rho*u
+        for j in range(0,nd):
+            Pmatv[count][j] = P[j]
+            #print Pmatv[count][j],count,j,x[0]
+        count = count+1
 
         fmat.append(f)
         fmatres.append(fres)
 
         x[0] = x[0]+stepx
         
+    if nc>1:
+        Pmat = RectBivariateSpline(x0v,rhob,Pmatv)
+    else:
+        Pmat = 'NULL'
+
     renorm_out = []
     renorm_out.append(fv)
     renorm_out.append(x0v)
+    renorm_out.append(rhov)
     renorm_out.append(rhob)
-    renorm_out.append(fresv)
     renorm_out.append(fmat)
-    renorm_out.append(umat)
+    renorm_out.append(Pmat)
     if nc>1: #If binary mixture, report calculated values
         print 'before report'
         ren_u = report_renorm_bin(rhob,x0v,fmatres,nx,nd,MR,IDs,EoS)
@@ -333,6 +355,99 @@ def lnfugcoef_renorm(P,T,x,phase,V,r_data,bmix):
     return lnphi
 #=========================================================================================
 
+#Calculates Volume of a component in phase of a mixture with renormalization--------------
+def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
+
+    Pspln = r_data[5]
+    rho = r_data[3][0]
+    x = np.array(menus.flatten(r_data[1]))
+
+    nd = len(rho)
+    nx = x.shape[0]
+
+    Pvec = np.empty((nd))
+    Pfvec = np.empty((nd))
+    dPdrho = np.empty((nd))
+
+    flag = False
+    inflex = False
+
+    while flag!=True:
+        #Interpolate specific pressure
+        Pvint = Pspln(xint,0.0001)
+        Pvec[0] = Pvint
+        Pfvec[0] = Pvec[0] - Pint
+
+        for i in range(1,nd-1):
+            rhoint = float(i)/nd
+            Pvint = Pspln(xint,rhoint)
+            #print i,rhoint,Pvint
+            Pvec[i] = Pvint
+            Pfvec[i] = Pvec[i] - Pint
+            dPdrho[i] = (Pvec[i+1] - Pvec[i-1])/(float(i+1)/nd-float(i-1)/nd)
+            if inflex==False and dPdrho[i]<0:
+                inflex=True
+        Pvint = Pspln(xint,int(nd-1))
+        Pvec[nd-1] = Pvint
+        Pfvec[nd-1] = Pvec[nd-1] - Pint
+        dPdrho[0] = (Pvec[1] - Pvec[0])/(float(1)/nd-float(0)/nd)
+        dPdrho[nd-1] = (Pvec[nd-1] - Pvec[nd-2])/(float(nd-1)/nd-float(nd-2)/nd)
+
+        #Bracketing the real densities at given P
+        #print Pvec
+        #print Pfvec
+        #plt.plot(rho,Pvec)
+        #plt.ylim(-15,15)
+        #plt.show()
+        max1 = 2
+        min1 = int(0.90*nd)
+        max2 = max1+2
+        min2 = min1-2
+        #print rho[max1],rho[max2]
+        while Pfvec[max1]*Pfvec[max2]>0:
+            #max2 = max2+int(nd/200)
+            max2 = max2+2
+            #print 'max',max2
+        if max2-int(nd/100)<0:
+            max1 = 0
+            #print 'max1',max1
+        else:
+            #max1 = max2-int(nd/100)
+            max1 = max2-2
+            #print 'else',max1
+
+        while Pfvec[min1]*Pfvec[min2]>0:
+            #min2 = min2-int(nd/200)
+            min2 = min2-2
+        #min1 = min2+int(nd/100)
+        min1 = min2+2
+
+        #print 'falsi_spline',rho[max1],rho[max2],rho[min1],rho[min2]
+        #Calculate coexistence densities in interpolated isotherm for given P
+        rho_vap = numerical.falsi_spline(rho, Pfvec, rho[max1], rho[max2], 1e-5)
+        rho_liq = numerical.falsi_spline(rho, Pfvec, rho[min2], rho[min1], 1e-5)
+
+        if inflex==True and abs(rho_vap-rho_liq)<1e-5:
+            Pint=Pint/2
+
+        if inflex==True and abs(rho_vap-rho_liq)>1e-5:
+            flag=True
+
+        if xint>0.05:
+            flag=True
+
+    #Select desired density
+    if phase<0:
+        rho_out = rho_liq
+    if phase>0:
+        rho_out = rho_vap
+
+    V = 1/(rho_out/bmix)
+    V_out = []
+    V_out.append(V)
+    V_out.append(0)
+    return V_out
+#=========================================================================================
 
 #Calculates Helmholtz repulsive forces----------------------------------------------------
 def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
@@ -370,7 +485,7 @@ def helm_long(EoS,rho,f):
         6: -0.5*rho**2 #CPA+RG
     }.get(EoS,'NULL')
     
-    flong = f - f0a 
+    flong = f - f0a
     return flong
 #=========================================================================================
 
@@ -397,15 +512,16 @@ def renorm_df(w,n,fl,fs,K,rho,width):
     #print 'inside renorm_df',w,n
     suml = 0
     sums = 0
-    t = 0
+    t = 1
     aminl = 0
     amins = 0
-    Gl2 = np.empty((n))
-    Gs2 = np.empty((n))
+    Gl2 = np.zeros((n))
+    Gs2 = np.zeros((n))
     argl = np.zeros((n))
     args = np.zeros((n))
     
-    while t<min(w+1,n-w):
+    #while t<min(w+1,n-w):
+    while t<min(w,n-w):
         Gl2[t] = np.exp(-((fl[w+t] - 2*fl[w] + fl[w-t])/2)/K)
         Gs2[t] = np.exp(-((fs[w+t] - 2*fs[w] + fs[w-t])/2)/K)
         t=t+1

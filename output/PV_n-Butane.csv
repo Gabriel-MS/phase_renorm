@@ -2,14 +2,11 @@
 Number of components: 1 
 Equation of State:    CPA+RG 
 Mixing Rule:          VdW1f 
-Components:           Methanol 
+Components:           n-Butane 
 Feed Composition:     [0.3, 0.7] 
 Association Rule:     2B 
 Combining Rule:       CR-1 
 ============================================
 T;rhov;rhol;P
 
-525.0;7210.12523762;10667.7813759;10.10065713
-525.5;7381.20674991;10490.4395748;10.179644111
-526.0;7569.64318602;10290.0162806;10.259040692
-526.5;8110.59461553;8110.59461553;10.350339131
+424.5;0.0;0.0;0.0

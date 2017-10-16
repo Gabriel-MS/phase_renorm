@@ -642,7 +642,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     
     #Definitions--------------------------------------------------
     #Main iteration conditions
-    x = np.array([0.001,0.999]) #x array
+    x = np.array([0.0001,0.9999]) #x array
     xf = 1.0                    #Main stop condition
     stepx = 5e-3                #Main step
     it = 0                      #Iteration counter
@@ -668,6 +668,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     #Initial guess
     P = np.dot(Psat,x)
     y = Psat*x/P
+    print Psat,x,P,y
     Vv = R*T/P #Not going to be used, just starting
     Vl = 0.99  #Not going to be used, just starting
     #=============================================================
@@ -690,12 +691,12 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
             
             #print 'phil = ',np.exp(lnfugcoef_l),Vl
             #print 'phiv = ',np.exp(lnfugcoef_v),Vv
-            #print 'sumKx = ',sumKx
+            #print 'sumKx = ',sumKx,K,Kx
             
             #Iteration y start-----------------------------------------------
             erry = toly+1
             ity = 0
-            while erry>toly or ity<2:
+            while (erry>toly and ity<200) or ity<2:
                 y = Kx/sumKx
                 sumKxold = sumKx
                 func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt,r_data) #Vapor
@@ -706,19 +707,19 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
                 sumKx = np.sum(Kx)
                 erry = abs(sumKx-sumKxold)/sumKx
                 ity = ity+1
-                #print 'erry',erry
+                #print 'erry',erry,y,K
                 #print 'y inside erry',y
             #Iteration y end=================================================
             
             errK = abs(sumKx-1)/sumKx
             y = Kx/sumKx
-            P = P*sumKx #Applying break condition
+            P = P*sumKx
             it = it+1
             #print 'y',y
             #print 'P',P,sumKx
             #print 'it',it
-            #print 'errK---------------',errK,tolK
-            #input('...')
+            #print 'errK---------------',errK,tolK,P,y
+            #raw_input('...')
         #Iteration Kx end====================================================
         
         #Save P, x1 and y1
@@ -735,8 +736,8 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
         #input('End a point--------------')
         print x[0],y[0],P,it
         x[0] = x[0]+stepx
-        if stepx==5e-3 and pt==0:
-            x[0] = 5e-3
+        if stepx==5E-3 and pt==0:
+            x[0] = 5E-3
         x[1] = 1-x[0]
         pt = pt+1       #add counter pt
         it = 0          #zero counter it
@@ -843,13 +844,23 @@ def coexistence_dens(rho1,f1):
     #plt.plot(rho,P)
     #plt.ylim(0,20)
     #plt.show()
-    
+
     #First derivative
     #drho = rho[1]-rho[0]
-    dPdrho = np.diff(P)/drho
+    Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
+    dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
     
     #Find max and min pressure of isotherm inside binodal curve
     max1 = int(numerical.bin_max(dPdrho))
+    if max1==n:
+        dens = []
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        return dens
     min1 = int(numerical.bin_min(dPdrho))
     rhomax = rho[max1]
     rhomin = rho[min1]
@@ -861,6 +872,15 @@ def coexistence_dens(rho1,f1):
     Pmin = Pmax+1 #method below seems always better, trying forcing it everytime
     if Pmin>Pmax:
         min1 = numerical.bin_min_seed(dPdrho,max1)
+        if max1==n:
+            dens = []
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            return dens
         rhomin = rho[min1]
         Pmin = P[min1]
         min2 = min1+10
@@ -907,7 +927,7 @@ def coexistence_dens(rho1,f1):
         i = i+1
     if Pf1roots[0]>Pf2roots[0]:
         rho1 = 0.1
-    rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-3)
+    rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-5)
     
     
     i = 0
@@ -915,8 +935,9 @@ def coexistence_dens(rho1,f1):
     while rho2<rhomin:
         rho2 = Pf2roots[i]
         i = i+1
-    rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-3)
+    rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-5)
 
+    #print rho1,rho2
     #Solve newton-raphson system
     tol = 1e-10
     drho1 = tol+1
@@ -1066,9 +1087,10 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     Pv = []
     Fobj = 2.0
     i = 0
+    h = 0
     
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
-    while Fobj>1.0:
+    while Fobj>0.1:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         dens = coexistence_dens(ren[2],ren[0])
         Tv.append(T)
@@ -1077,38 +1099,52 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
         Pv.append(dens[2])
         Fobj = abs(dens[0]-dens[1])
 
-        ren = renormalization.renorm(EoS,IDs,MR,T+0.001,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-        dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
-        Fobj_plus = abs(dens[0]-dens[1])
+        #ren_p = renormalization.renorm(EoS,IDs,MR,T*(1+h),nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        #dens_p = coexistence_dens(ren_p[2],ren_p[0])
+        #Fobj_plus = abs(dens_p[0]-dens_p[1])
 
-        ren = renormalization.renorm(EoS,IDs,MR,T-0.001,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-        dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
-        Fobj_minus = abs(dens[0]-dens[1])
+        #ren_m = renormalization.renorm(EoS,IDs,MR,T*(1-h),nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        #dens_m = coexistence_dens(ren_m[2],ren_m[0])
+        #Fobj_minus = abs(dens_m[0]-dens_m[1])
         
-        Fobj_derivative = (Fobj_plus-Fobj_minus)/(2*T*1e-3)
-        if Fobj_derivative==0:
-            Fobj_derivative=-100
-        step = -Fobj/Fobj_derivative
-        if i==0:
-            step = 1e-6
-        print T,dens[0],dens[1],Fobj,Fobj_derivative,step
-        T = T + 0.001*step
+        #Fobj_derivative = (Fobj_plus-Fobj_minus)/(2*T*h)
+        #if Fobj_derivative==0:
+        #    Fobj_derivative=-100
+        #step = -Fobj/Fobj_derivative
+
+        #print T,dens[0],dens[1],Fobj,Fobj_plus,Fobj_minus,Fobj_derivative,step
+        print T,dens[0],dens[1],dens[2]
+
+        if Fobj>1000:
+            step = 0.1
+        if Fobj>100 and Fobj<=1000:
+            step = 0.05
+        if Fobj>10 and Fobj<=100:
+            step = 0.01
+        if Fobj<10:
+            step = 0.001
+        T = T + step
         i = i+1
         
+    report_crit(T-step,dens[2],dens[0],IDs)
     env.append(Tv)
     env.append(rhov)
     env.append(rhol)
     env.append(Pv)
     return env
 #======================================================================================  
+
+#Report found critical data------------------------------------------------------------
+def report_crit(Tc,Pc,rhoc,IDs):
+    title = 'critical.log'
+    Lc = float(data.L(IDs)[0])
+    phic = float(data.phi(IDs)[0])
+    savedir = str('../output/%s' %title)
+    with open(savedir,'a') as file:
+        lin1 = [str(round(Tc,9)),str(round(Pc,9)),str(round(rhoc,9)),str('%.2E' %Lc),str(round(phic,9))]
+        lin = ('%s\n' % ';'.join(lin1))
+        file.write(lin)
+#======================================================================================
 
 #Given initial T, using renormalization method, estimate L and phi parameters----------
 def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
@@ -1360,7 +1396,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         #Calculate pure PV envelope*****************************************************
         nd = 400
         nx = 200
-        n = 6
+        n = 8
         finalT = 530.0
         stepT = 0.5
         print '\nCalculating PV envelope'
@@ -1393,11 +1429,11 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             print '\nCalculating renormalized helmholtz energy surface'
             nd = 400
             nx = 200
-            n = 9
+            n = 8
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
-            r_data = 0
+            r_data = []
 
         print '\nCalculating Pxy envelope'
         env_pxy = Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data)

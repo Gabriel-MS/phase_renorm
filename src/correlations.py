@@ -11,6 +11,6 @@ def Psat_antoine(IDs,T):
     Psat = 10 ** (A-B/(T+C))
     
     #Convert bar to MPa
-    #Psat = Psat/10
+    Psat = Psat/10
     return Psat
 #=======================================================================================
