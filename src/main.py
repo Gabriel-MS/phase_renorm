@@ -18,13 +18,13 @@ print ('    ============================================\n\n\n')
 #User menu to define custom configuration
 #user_options = menus.user()
 user_options = []
-user_options.append(1)
-user_options.append([4,4])
+user_options.append(1) #nc
+user_options.append([5,5]) #IDs
 user_options.append(6) #EoS
-user_options.append(1)
-user_options.append([0.3,0.7])
-user_options.append([3,3])
-user_options.append(1)
+user_options.append(1) #MR
+user_options.append([0.3,0.7]) #z
+user_options.append([3,3]) #CPA AM
+user_options.append(1) #CPA CR
 print_options = []
 print_options = menus.print_options(user_options)
 
@@ -51,7 +51,7 @@ AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
 env_type = 5
 P = 0.05
-T = 423.0
+T = 304.00
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations

@@ -10,11 +10,9 @@ def properties():
         for row in readCSV:
             name = row[1]           #Names of Compounds
             Tc   = float(row[2])    #Critical Temperature
-
             #Organize read values to respective lists
             names.append(name)
             Tcs.append(Tc)
-
     #Printing out for apparent no reason (test)
     print(names)
     print(Tcs)

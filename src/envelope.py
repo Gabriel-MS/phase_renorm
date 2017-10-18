@@ -840,14 +840,15 @@ def coexistence_dens(rho1,f1):
     while i<(n/2+15):
         P[i]=a*rho[i]+b
         i = i + 1
-    #plt.plot(rho,P)
-    #plt.ylim(0,20)
-    #plt.show()
 
     #First derivative
     #drho = rho[1]-rho[0]
-    Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
+    Pspl = splrep(rho,P,k=3,s=2)         #Cubic Spline Representation
+    P = splev(rho,Pspl,der=0)
     dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
+
+    #for i in range(0,n):
+    #    print i,rho[i],P[i],dPdrho[i]
     
     #Find max and min pressure of isotherm inside binodal curve
     max1 = int(numerical.bin_max(dPdrho))
@@ -868,7 +869,9 @@ def coexistence_dens(rho1,f1):
     min2 = min1+30
     max2 = max1-30
 
-    Pmin = Pmax+1 #method below seems always better, trying forcing it everytime
+    #print Pmax,Pmin,rhomax,max2,max1,min1,min2
+
+    #Pmin = Pmax+1 #method below seems always better, trying forcing it everytime
     if Pmin>Pmax:
         min1 = numerical.bin_min_seed(dPdrho,max1)
         if max1==n:
@@ -926,7 +929,7 @@ def coexistence_dens(rho1,f1):
         i = i+1
     if Pf1roots[0]>Pf2roots[0]:
         rho1 = 0.1
-    rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-5)
+    rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-7)
     
     
     i = 0
@@ -934,9 +937,9 @@ def coexistence_dens(rho1,f1):
     while rho2<rhomin:
         rho2 = Pf2roots[i]
         i = i+1
-    rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-5)
+    rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-7)
 
-    #print rho1,rho2
+    #print 'rho1,rho2',rho1,rho2
     #Solve newton-raphson system
     tol = 1e-10
     drho1 = tol+1
@@ -949,13 +952,24 @@ def coexistence_dens(rho1,f1):
     counter = 0
     
     uspl = splrep(rho,u,k=3)
-    Pspl = splrep(rho,P,k=3)
+    #Pspl = splrep(rho,P,k=3)
     fspl1 = splev(rho,fspl)
     uspl1 = splev(rho,uspl)
     dudrho = splev(rho,uspl,der=1)
     dPdrho = splev(rho,Pspl,der=1)
     Nitmax = 1000
     Nit = 0    
+    
+    #print '................'
+    #print rho1,rho2
+ 
+    #plt.plot(rho,P)
+    #plt.ylim(8,10)
+    #plt.show()
+
+    #plt.plot(rho,dPdrho)
+    #plt.ylim(-0.001,0.001)
+    #plt.show()
 
     while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
     #while (abs(drho1)>tol or abs(drho2)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
@@ -975,10 +989,22 @@ def coexistence_dens(rho1,f1):
 
         drho2 = -du1/detJ*(P1-P2)+dP1/detJ*(u1-u2)
         drho1 = -du2/detJ*(P1-P2)+dP2/detJ*(u1-u2)
-        
+
+        if drho1>400:
+            drho1=400
+        if drho1<-400:
+            drho1=-400
+        if drho2>400:
+            drho2=400
+        if drho2<-400:
+            drho2=-400
         rho1 = rho1 + stop*drho1
         rho2 = rho2 + stop*drho2
         
+        du = abs(u1-u2)
+        dP = abs(P1-P2)
+        #print rho1,rho2,du,dP,drho1,drho2,stop
+
         if counter>0 and (drho1>drho1old and drho2>drho2old):
             rho1 = rho1 - stop*drho1
             rho2 = rho2 - stop*drho2
@@ -987,13 +1013,11 @@ def coexistence_dens(rho1,f1):
             rho2 = rho2 + stop*drho2/2
             #print stop,counter
         
-        du = abs(u1-u2)
-        dP = abs(P1-P2)
-        #print rho1,rho2,du,dP,drho1,drho2
-        
         counter = counter+1
         drho1old = drho1
         drho2old = drho2
+        duold = du
+        dPold = dP
 
     if abs(Pmax-Pmin)<1e-3:
         rho1 = (rhomax+rhomin)/2
@@ -1091,7 +1115,6 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-        print 'REN ok'
         dens = coexistence_dens(ren[2],ren[0])
         Tv.append(T)
         rhov.append(dens[0])
@@ -1115,7 +1138,9 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
         #print T,dens[0],dens[1],Fobj,Fobj_plus,Fobj_minus,Fobj_derivative,step
         print T,dens[0],dens[1],dens[2]
 
-        if Fobj>1000:
+        if Fobj>3000:
+            step = 0.5
+        if Fobj>1000 and Fobj<=3000:
             step = 0.1
         if Fobj>100 and Fobj<=1000:
             step = 0.05
