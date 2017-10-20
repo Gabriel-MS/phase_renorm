@@ -53,7 +53,7 @@ def cubic_v_roots(coef,R,T,P):
 #Calculate trapezoidal integral in given interval------------------------------------------
 def trapezoidal(x,y,a,b):
     i = 0
-    area = 0;
+    area = 0
     if b==a:
         h = 1e-15
     else:

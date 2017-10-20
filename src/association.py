@@ -195,7 +195,7 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
             
     #Main iteration definitions
     k = 1                   #Iteration counter
-    tolX = 1e-5             #Tolerace
+    tolX = 1e-6             #Tolerace
     Xmax = tolX+1           #Force condition to enter
     I = np.identity(4*nc)   #Identity matrix
     gmax = tolX+1

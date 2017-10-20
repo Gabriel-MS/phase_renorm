@@ -15,21 +15,21 @@ def parameters(EoS):
     param = []
     
     sig = {
-        1: 0, #SRK
-        2: 0, #SRK+RG
+        1: 1, #SRK
+        2: 1, #SRK+RG
         3: 1+2**(0.5), #PR
         4: 1+2**(0.5), #PR+RG
-        5: 0, #CPA
-        6: 0  #CPA+RG
+        5: 1, #CPA
+        6: 1  #CPA+RG
     }.get(EoS,'NULL')
     
     eps = {
-        1: 1, #SRK
-        2: 1, #SRK+RG
+        1: 0, #SRK
+        2: 0, #SRK+RG
         3: 1-2**(0.5), #PR
         4: 1-2**(0.5), #PR+RG
-        5: 1, #CPA
-        6: 1, #CPA+RG
+        5: 0, #CPA
+        6: 0, #CPA+RG
     }.get(EoS,'NULL')
     
     OMEGAa = {

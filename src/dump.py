@@ -1,5 +1,73 @@
 #############HOLDS OLDER OR NON-WORKING VERSIONS OF SOME FUNCTIONS###############
 
+#Given initial T, using renormalization method, estimate L and phi parameters----------
+def PV_estimate_dens_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+    rhol = []
+    exp_dens_liq = []
+    exp_dens_vap = []
+    
+    #Extracting experimental data
+    expdata = data.loadexp()
+    rho_liq_exp = np.array(expdata[1])
+    rho_vap_exp = np.array(expdata[0])
+    T_exp = np.array(expdata[2])
+    size = T_exp.size
+    
+    #Selecting experimental data
+    #Select temperatures
+    Texps = []
+    Tc = T_exp[size-1]
+    for i in range(0,10):
+        Tr = 0.95
+        Texp = data.truncate(Tr*Tc+i,1)
+        Texps.append(Texp)
+    for i in range(0,10):
+        Tr = 0.99
+        Texp = data.truncate(Tr*Tc+0.1*i,1)
+        Texps.append(Texp)
+    for i in range(0,10):
+        Texp = data.truncate(Tc-0.9+0.1*i,1)
+        Texps.append(Texp)
+    #Find position of temperatures in extracted vector and select densities
+    Texps = np.array(Texps)
+    size2 = Texps.size
+    for k in range(0,size2):
+        i, = np.where(T_exp==Texps[k])
+        exp_dens_liq.append(rho_liq_exp[i])
+        exp_dens_vap.append(rho_vap_exp[i])
+    rho_l_exp = np.array(exp_dens_liq)
+    rho_v_exp = np.array(exp_dens_vap)
+        
+    #Calculating data with actual parameters
+    print 'T:   rhov:   rhol:   P:'
+    for i in range(0,size-1):
+        T = Texps[i]
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        print T,dens[0],dens[1],dens[2]
+        
+    #Calculate Objective Function
+    rho_l_calc = np.array(rhol)
+    Fobj = np.sum(np.power((rho_l_exp-rho_l_calc),2)/rho_l_exp)
+    print Fobj
+    
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    return env
+#======================================================================================
+
 #Given pure component isotherm, calculates phase coexistence densities-----------------
 def coexistence_dens_2(rho1,f1):
     
