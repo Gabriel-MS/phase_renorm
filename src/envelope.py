@@ -9,11 +9,12 @@ import correlations
 import association
 import numerical
 import renormalization
-from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
+import derivativeprop
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 
 R = 8.314462175e-6 #m3.MPa/K/mol
 
@@ -1262,75 +1263,84 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     env.append(rhol)
     env.append(Pv)
     return env
-#======================================================================================  
+#====================================================================================== 
 
-#Given initial T, using renormalization method, estimate L and phi parameters----------
-def PV_estimate_dens_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+#Given initial T, using renormalization method, calculate derivative properties--------
+def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     
-    env = []
-    Tv = []
-    rhov = []
-    rhol = []
-    Pv = []
-    rhol = []
-    exp_dens_liq = []
-    exp_dens_vap = []
+    fres0 = []
+    fres1 = []
+    fres2 = []
     
-    #Extracting experimental data
-    expdata = data.loadexp()
-    rho_liq_exp = np.array(expdata[1])
-    rho_vap_exp = np.array(expdata[0])
-    T_exp = np.array(expdata[2])
-    size = T_exp.size
+    P0 = []
+    P1 = []
+    P2 = []
     
-    #Selecting experimental data
-    #Select temperatures
-    Texps = []
-    Tc = T_exp[size-1]
-    for i in range(0,10):
-        Tr = 0.95
-        Texp = data.truncate(Tr*Tc+i,1)
-        Texps.append(Texp)
-    for i in range(0,10):
-        Tr = 0.99
-        Texp = data.truncate(Tr*Tc+0.1*i,1)
-        Texps.append(Texp)
-    for i in range(0,10):
-        Texp = data.truncate(Tc-0.9+0.1*i,1)
-        Texps.append(Texp)
-    #Find position of temperatures in extracted vector and select densities
-    Texps = np.array(Texps)
-    size2 = Texps.size
-    for k in range(0,size2):
-        i, = np.where(T_exp==Texps[k])
-        exp_dens_liq.append(rho_liq_exp[i])
-        exp_dens_vap.append(rho_vap_exp[i])
-    rho_l_exp = np.array(exp_dens_liq)
-    rho_v_exp = np.array(exp_dens_vap)
+    rho0 = []
+    rho1 = []
+    rho2 = []
+    
+    T0 = []
+    T1 = []
+    T2 = []
+    
+    h = 1e-2
+
+    step = 1.0
+    finalT = T
+    
+    print 'T:   dens_vap:   dens_liq:   P:'
+    while T<=finalT:
+
+        T0.append(T-T*h)
+        T1.append(T)
+        T2.append(T+T*h)
         
-    #Calculating data with actual parameters
-    print 'T:   rhov:   rhol:   P:'
-    for i in range(0,size-1):
-        T = Texps[i]
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-        dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
-        print T,dens[0],dens[1],dens[2]
-        
-    #Calculate Objective Function
-    rho_l_calc = np.array(rhol)
-    Fobj = np.sum(np.power((rho_l_exp-rho_l_calc),2)/rho_l_exp)
-    print Fobj
+        fres1.append(ren[7])
+        rho1.append(ren[2])
+        P1.append(ren[8])
+        #print 'central',T,dens[0],dens[1],dens[2],Fobj
+
+        ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        fres2.append(ren[7])
+        rho2.append(ren[2])
+        P2.append(ren[8])
+        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
+
+        ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        fres0.append(ren[7])
+        rho0.append(ren[2])
+        P0.append(ren[8])
+        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
+
+        T = T+step
     
-    env.append(Tv)
-    env.append(rhov)
-    env.append(rhol)
-    env.append(Pv)
-    return env
-#======================================================================================
+    T_list = []
+    fres_list = []
+    P_list = []
+    rho_list = []
+    
+    T_list.append(T0)
+    T_list.append(T1)
+    T_list.append(T2)
+    
+    fres_list.append(fres0)
+    fres_list.append(fres1)
+    fres_list.append(fres2)
+    
+    P_list.append(P0)
+    P_list.append(P1)
+    P_list.append(P2)
+    
+    rho_list.append(rho0)
+    rho_list.append(rho1)
+    rho_list.append(rho2)
+    
+    der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,fres_list,P_list,rho_list,h)
+    
+    return der_prop
+#====================================================================================== 
 
 #Report PV envelope--------------------------------------------------------------------
 def report_PV(data,options,title,print_options):
@@ -1417,21 +1427,46 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         print ('Figure %s saved successfully' %figname)
         #*******************************************************************************
 
-    if env_type==2 or env_type==3 or env_type==4 or env_type==5:
+    if env_type==5:
+        #Calculate pure PV derivative properties*****************************************************
+        nd = 400
+        nx = 200
+        n = 5
+        stepT = 0.5
+        finalT = T
+        print '\nCalculating pure isothermal derivative properties'
+        dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        print 'pure isothermal derivative properties calculated'
+
+        print 'Creating pure isothermal derivative properties report'
+        reportname = str('Deriv_Prop_%s.csv' %('_'.join(print_options[1])))
+        derivativeprop.report_isothermal_dev_prop_pure(reportname,dp_dat[0],dp_dat[1],dp_dat[2],dp_dat[3],dp_dat[4],dp_dat[5],dp_dat[6],
+                                                     dp_dat[7],dp_dat[8],dp_dat[9],dp_dat[10],dp_dat[11],dp_dat[12],
+                                                     dp_dat[13],print_options)
+        print ('Report %s saved successfully' %reportname)
+
+        print 'Starting to plot pure isothermal derivative properties'
+        title = str('Derivative Properties\n%s' %(' + '.join(print_options[1])))
+        figname = str('Deriv_Prop_%s.png' %('_'.join(print_options[1])))
+        derivativeprop.plot_isothermal_dev_prop_pure(dp_dat[0],dp_dat[1],dp_dat[2],dp_dat[3],dp_dat[4],dp_dat[5],dp_dat[6],
+                                                     dp_dat[7],dp_dat[8],dp_dat[9],dp_dat[10],dp_dat[11],dp_dat[12],
+                                                     dp_dat[13],print_options,figname)
+        print ('Figure %s saved successfully' %figname)
+        #*******************************************************************************
+        
+    if env_type==2 or env_type==3 or env_type==4:
         #Calculate pure PV envelope*****************************************************
         nd = 400
         nx = 200
-        n = 8
+        n = 5
         finalT = 530.0
         stepT = 0.5
         print '\nCalculating PV envelope'
         if env_type==2:
             env_PV = PV_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==3:
-            env_PV = PV_estimate_dens_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-        if env_type==4:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-        if env_type==5:
+        if env_type==4:
             env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         print 'PV envelope calculated'
 
@@ -1454,7 +1489,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             print '\nCalculating renormalized helmholtz energy surface'
             nd = 400
             nx = 200
-            n = 8
+            n = 5
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:

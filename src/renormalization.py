@@ -5,9 +5,12 @@ import eos
 import association
 import math
 import numerical
-import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 from scipy.interpolate import RectBivariateSpline
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 R = 8.314462175e-6 #m3.MPa/K/mol
 NA = 6.023e23      #Avogadro Number
@@ -34,11 +37,12 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     Tr = T/np.array(Tc)
     
     #Main loop parameters
-    x = np.array([0.001,0.999])
+    x = np.array([0.000001,0.999999])
     stepx = (1/float(nx)) #Step to calculate change
     k = 0               #Vector fill counter
     i = 1               #Main loop counter
     r = 0               #Report counter
+    count = 0
     rho = np.empty((nd))            #Density vector
     rhov = []                       #Density vector to export
     x0v = []                        #Mole fraction vector to export
@@ -51,6 +55,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     rhob = []                       #Adimensional density vector
     u = np.empty((nd))
     X = np.ones((4*nc))
+    Pv = []
     fmat = []
     Pmatv = np.empty((nx,nd))
     fmatres = []
@@ -62,7 +67,6 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         X = np.ones((8))
     
     #Main loop*************************************
-    count = 0
     while x[0]<1.0:
         if nc>1:
             print x[0]
@@ -97,7 +101,6 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
             f[k] = f[k] + 0.5*amix*(rho[k]**2)
             k = k+1
             
-            
         #Adimensionalization
         rho = rho*bmix
         f = f*bmix*bmix/amix
@@ -110,7 +113,9 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         while i<=n:
             #print i
             #K = kB*T/((2**(3*i))*(L**3))
+            #K = R*T/((L**3)*(2**(3*i)))
             K = T/(2**(3*i))/((L**3)/bmix*6.023e23)
+            
             
             #Long and Short Range forces
             fl = helm_long(EoS,rho,f)
@@ -125,6 +130,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
             #Update Helmholtz Energy Density
             df = np.array(df)
             f = f + df
+            #print 'i=',i,K/bmix/bmix*amix,f[60]/bmix/bmix*amix,df[60]/bmix/bmix*amix,fl[60]/bmix/bmix*amix,fs[60]/bmix/bmix*amix
             i = i+1
 
         #Dimensionalization
@@ -158,6 +164,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         u[0] = (f[1]-f[0])/drho
 
         P = -f+rho*u
+        Pv.append(P)
         for j in range(0,nd):
             Pmatv[count][j] = P[j]
             #print Pmatv[count][j],count,j,x[0]
@@ -184,6 +191,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         print 'before report'
         ren_u = report_renorm_bin(rhob,x0v,fmatres,nx,nd,MR,IDs,EoS)
         renorm_out.append(ren_u)
+    else:
+        renorm_out.append(0)
+    renorm_out.append(fv)
+    renorm_out.append(Pv)
     return renorm_out
 #=========================================================================================
 
@@ -450,7 +461,7 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
 
 #Calculates Helmholtz repulsive forces----------------------------------------------------
 def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
-    
+
     f_CPA = 1
     if EoS==6:
         if nc==1:
@@ -472,6 +483,9 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
         6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
     }.get(EoS,'NULL')
     
+    #if abs(rho*bmix-0.15)<1e-4:
+    #    print f_CPA1,f_CPA,f
+    
     return f
 #=========================================================================================
 
@@ -479,9 +493,9 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
 def helm_long(EoS,rho,f):
     
     f0a = {
-        2: -0.5*rho**2, #SRK+RG
-        4: -0.5*rho**2, #PR+RG
-        6: -0.5*rho**2 #CPA+RG
+        2: -0.5*rho*rho, #SRK+RG
+        4: -0.5*rho*rho, #PR+RG
+        6: -0.5*rho*rho #CPA+RG
     }.get(EoS,'NULL')
     
     flong = f - f0a
@@ -492,9 +506,9 @@ def helm_long(EoS,rho,f):
 def helm_short(EoS,rho,f,phi,i):
     
     f0a = {
-        2: -0.5*rho**2, #SRK+RG
-        4: -0.5*rho**2, #PR+RG
-        6: -0.5*rho**2 #CPA+RG
+        2: -0.5*rho*rho, #SRK+RG
+        4: -0.5*rho*rho, #PR+RG
+        6: -0.5*rho*rho #CPA+RG
     }.get(EoS,'NULL')
     
     fshort = {
@@ -509,15 +523,11 @@ def helm_short(EoS,rho,f,phi,i):
 #Calculates Change in Helmholtz energy density--------------------------------------------
 def renorm_df(w,n,fl,fs,K,rho,width):
     #print 'inside renorm_df',w,n
-    suml = 0
-    sums = 0
     t = 1
-    aminl = 0
-    amins = 0
+    Inl = 0
+    Ins = 0
     Gl2 = np.zeros((n))
     Gs2 = np.zeros((n))
-    argl = np.zeros((n))
-    args = np.zeros((n))
     
     #while t<min(w+1,n-w):
     while t<min(w,n-w):
@@ -525,10 +535,17 @@ def renorm_df(w,n,fl,fs,K,rho,width):
         Gs2[t] = np.exp(-((fs[w+t] - 2*fs[w] + fs[w-t])/2)/K)
         t=t+1
 
-    Inl = numerical.trapezoidal(rho,Gl2,0,t) #era w
-    Ins = numerical.trapezoidal(rho,Gs2,0,t) #era w
-    df = -K*np.log(Ins/Inl)
-
+    Inl = numerical.trapezoidal(rho,Gl2,0,t-1) #era w
+    Ins = numerical.trapezoidal(rho,Gs2,0,t-1) #era w
+    
+    logInl = np.log(Inl)
+    logIns = np.log(Ins)
+    df = -K*(logIns-logInl)
+    #print Inl
+    #if w==60:
+    #    print w,t,rho[60],Ins,Inl,df
+    #    raw_input('......')
+        
     if math.isnan(df) or math.isinf(df):
         df = 1e-15
 
