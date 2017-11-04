@@ -2,7 +2,7 @@ import numpy as np
 import menus
 
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 R = 8.314462175e-6 #m3.MPa/K/mol

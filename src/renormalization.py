@@ -9,7 +9,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, inter
 from scipy.interpolate import RectBivariateSpline
 
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 R = 8.314462175e-6 #m3.MPa/K/mol
@@ -37,7 +37,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     Tr = T/np.array(Tc)
     
     #Main loop parameters
-    x = np.array([0.000001,0.999999])
+    x = np.array([0.001,0.999])
     stepx = (1/float(nx)) #Step to calculate change
     k = 0               #Vector fill counter
     i = 1               #Main loop counter
@@ -46,6 +46,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     rho = np.empty((nd))            #Density vector
     rhov = []                       #Density vector to export
     x0v = []                        #Mole fraction vector to export
+    bmixv = []
     f = np.empty((nd))              #Helmholtz energy density vector
     fv = []                         #Helmholtz energy density vector to export
     fresv = []                      #Residual Helmholtz energy density vector to export
@@ -151,6 +152,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         fv.append(f)
         fresv.append(fres)
         x0v.append(x[0])
+        bmixv.append(bmix)
         
         if r==0:
             rhob.append(rho*bmix) #rhob vector is always the same
@@ -195,6 +197,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
         renorm_out.append(0)
     renorm_out.append(fv)
     renorm_out.append(Pv)
+    renorm_out.append(bmixv)
     return renorm_out
 #=========================================================================================
 
@@ -702,5 +705,194 @@ def renorm_est(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L):
     renorm_out.append(x0v)
     renorm_out.append(rhov)
     renorm_out.append(fresv)
+    return renorm_out
+#=========================================================================================
+
+#Outputs renormalized csv file of given EoS at give T WITHOUT ISOMORPHIC APPROXIMATION----
+def renorm_non_iso(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    #nd    Size of density grid
+    #nx    Size of mole fraction grid
+    #n     Main loop iteration controller
+    
+    #If only 1 component is present mimic a binary mixture made of the same component
+    if nc==1:
+        IDs[1] = IDs[0]
+    
+    #Recover parameters
+    L_rg = data.L(IDs)         #Vector with L parameters (cutoff length)
+    phi_rg = data.phi(IDs)     #Vector with phi parameters
+    Tc = data.Tc(IDs)
+    
+    #Components parameters
+    a = eos.a_calc(IDs,EoS,T)
+    b = eos.b_calc(IDs,EoS)
+    Tr = T/np.array(Tc)
+    
+    #Main loop parameters
+    x = np.array([0.001,0.999])
+    stepx = (1/float(nx)) #Step to calculate change
+    k = 0               #Vector fill counter
+    i = 1               #Main loop counter
+    r = 0               #Report counter
+    count = 0
+    rho = np.empty((nd))            #Density vector
+    rhov = []                       #Density vector to export
+    x0v = []                        #Mole fraction vector to export
+    bmixv = []
+    f = np.empty((nd))              #Helmholtz energy density vector
+    fv = []                         #Helmholtz energy density vector to export
+    fresv = []                      #Residual Helmholtz energy density vector to export
+    Tv = []                         #Temperature values to export
+    df = np.empty((nd))             #Changes in helmholtz energy density vector
+    f_orig = np.empty((nd))         #Unmodified Helmholtz energy density vector
+    rhob = []                       #Adimensional density vector
+    u = np.empty((nd))
+    X = np.ones((4*nc))
+    Pv = []
+    fmat = []
+    Pmatv = np.empty((nx,nd))
+    fmatres = []
+    umat = []
+    ures = np.empty((nd))
+    uv = []
+    
+    if nc==1:
+        X = np.ones((8))
+    
+    #Main loop*************************************
+    while x[0]<1.0:
+        if nc>1:
+            print x[0]
+        if x[0]==0.006: #after first step
+            x[0]=0.005
+        x[1]=1-x[0]
+        
+        if nc==1:
+            x[0] = 0.999999
+            x[1] = 0.000001
+        
+        #Mixture parameters
+        bmix = eos.bmix_calc(MR,b,x)
+        amix = eos.amix_calc(MR,a,x,kij)
+        rhomax = 0.999999
+        
+        #Mixture Renormalization parameters
+        L = np.dot(x,np.power(L_rg,3.0))
+        L = np.power(L,1.0/3.0)
+        phi = np.dot(x,phi_rg)
+        
+        for k in range(0,nd):
+            rho1[k] = np.array(float(k)/nd/b[0])
+            rho2[k] = np.array(float(k)/nd/b[1])
+            rho[k]  = np.array(float(k)/nd/bmix)
+            if k==0:
+                rho[0] = 1e-6
+                rho1[0] = 1e-6
+                rho2[0] = 1e-6
+            if EoS==6:
+                X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
+            f[k] = np.array(helm_rep(EoS,R,T,rho[k],amix,bmix,X,x,nc))   #Helmholtz energy density
+            f_orig[k] = f[k]                                #Initial helmholtz energy density
+            
+            #Subtract attractive forces (due long range correlations)
+            f[k] = f[k] + 0.5*amix*(rho[k]**2)
+            k = k+1
+            
+        #Adimensionalization
+        rho = rho*bmix
+        f = f*bmix*bmix/amix
+        T = T*bmix*R/amix
+
+        rho1 = rho.flatten()
+
+        #Main loop****************************************************************
+        i = 1
+        while i<=n:
+            #print i
+            #K = kB*T/((2**(3*i))*(L**3))
+            #K = R*T/((L**3)*(2**(3*i)))
+            K = T/(2**(3*i))/((L**3)/bmix*6.023e23)
+            
+            
+            #Long and Short Range forces
+            fl = helm_long(EoS,rho,f)
+            fs = helm_short(EoS,rho,f,phi,i)
+
+            #Calculate df
+            width = rhomax/nd
+            w = 0
+            for w in range(0,nd):
+                df[w] = renorm_df(w,nd,fl,fs,K,rho,width)
+
+            #Update Helmholtz Energy Density
+            df = np.array(df)
+            f = f + df
+            #print 'i=',i,K/bmix/bmix*amix,f[60]/bmix/bmix*amix,df[60]/bmix/bmix*amix,fl[60]/bmix/bmix*amix,fs[60]/bmix/bmix*amix
+            i = i+1
+
+        #Dimensionalization
+        rho = rho/bmix
+        f = f/bmix/bmix*amix
+        T = T/bmix/R*amix
+        
+        #Add original attractive forces
+        f = f - 0.5*amix*(rho**2)
+        
+        #Store residual value of f
+        fres = f - rho*R*T*(np.log(rho)-1)
+        #f = f + rho*R*T*(np.log(rho)-1) #Already accounting ideal gas energy
+
+        #if(EoS==6):
+        #    f = fres
+        
+        fv.append(f)
+        fresv.append(fres)
+        x0v.append(x[0])
+        bmixv.append(bmix)
+        
+        if r==0:
+            rhob.append(rho*bmix) #rhob vector is always the same
+            rhov.append(rho) #in case the calculation is done for one-component
+        r=1
+
+        drho = rho[int(nd/2)]-rho[int(nd/2)-1]
+        for i in range(1,nd-2):
+            u[i] = (f[i+1]-f[i-1])/(2*drho)
+        u[nd-1] = (f[nd-1]-f[nd-2])/drho
+        u[0] = (f[1]-f[0])/drho
+
+        P = -f+rho*u
+        Pv.append(P)
+        for j in range(0,nd):
+            Pmatv[count][j] = P[j]
+            #print Pmatv[count][j],count,j,x[0]
+        count = count+1
+
+        fmat.append(f)
+        fmatres.append(fres)
+
+        x[0] = x[0]+stepx
+        
+    if nc>1:
+        Pmat = RectBivariateSpline(x0v,rhob,Pmatv)
+    else:
+        Pmat = 'NULL'
+
+    renorm_out = []
+    renorm_out.append(fv)
+    renorm_out.append(x0v)
+    renorm_out.append(rhov)
+    renorm_out.append(rhob)
+    renorm_out.append(fmat)
+    renorm_out.append(Pmat)
+    if nc>1: #If binary mixture, report calculated values
+        print 'before report'
+        ren_u = report_renorm_bin(rhob,x0v,fmatres,nx,nd,MR,IDs,EoS)
+        renorm_out.append(ren_u)
+    else:
+        renorm_out.append(0)
+    renorm_out.append(fv)
+    renorm_out.append(Pv)
+    renorm_out.append(bmixv)
     return renorm_out
 #=========================================================================================

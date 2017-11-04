@@ -9,10 +9,11 @@ import correlations
 import association
 import numerical
 import renormalization
+import critical
 import derivativeprop
 
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 
@@ -1510,6 +1511,22 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         boxtext = str('T=%.2fK' %T)
         plot_Pxy(title,'x1,y1','P(MPa)',figname,boxtext,env_pxy[0],env_pxy[1],env_pxy[2])
         print ('Figure %s saved successfully' %figname)
+        #*******************************************************************************
+
+    if env_type==7:
+        #Calculate critical point*********************************************************
+
+        if EoS==2 or EoS==4 or EoS==6:
+            print '\nCalculating renormalized helmholtz energy surface'
+            nd = 40
+            nx = 40
+            n = 5
+            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+            print '\nHelmholtz Energy Surface calculated and reported'
+        else:
+            r_data = []
+
+        critical.sadus_hicks_young(r_data[4],r_data[3],r_data[1],r_data[9])
         #*******************************************************************************
 #======================================================================================
 
