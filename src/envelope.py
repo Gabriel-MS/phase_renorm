@@ -11,11 +11,16 @@ import numerical
 import renormalization
 import critical
 import derivativeprop
+import PSO
 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
+
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 R = 8.314462175e-6 #m3.MPa/K/mol
 
@@ -818,23 +823,47 @@ def report_Pxy(data,options,title,print_options):
 
 #Given pure component isotherm, calculates phase coexistence densities-----------------
 def coexistence_dens(rho1,f1):
-    
+
     rho1 = np.array(rho1)
     f1 = np.array(f1)
     n = f1.shape[1]
     rho = rho1.flatten()
     f = f1.flatten()
+
     #Spline to get chemical potential
     fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+
+    #--------
+    rhomax = rho[n-1]
+    rhomaxmax = rhomax
+    rho2 = np.empty((10000))
+    #print n,rhomax
+    for i in range(0,10000):
+        rho2[i] = i*rhomax/10000
+        #print rho2[i],i,float(i/10000)
+    rho2[0] = 1e-5
+    f2 = splev(rho2,fspl)        #Evaluate Cubic Spline First derivative
+    f = f2
+    rho = rho2
+    fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+    n = 10000
+    #--------
+
     u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
     
     drho = rho[n/2]-rho[n/2-1]
-    for i in range(1,n-2):
-        u[i] = (f[i+1]-f[i-1])/(2*drho)
-    u[n-1] = (f[n-1]-f[n-2])/drho
-    u[0] = (f[1]-f[0])/drho
+    #for i in range(1,n-2):
+    #    u[i] = (f[i+1]-f[i-1])/(2*drho)
+    #u[n-1] = (f[n-1]-f[n-2])/drho
+    #u[0] = (f[1]-f[0])/drho
+    
+    V = 1/rho2
+    A = f2/rho2
+    dAdV = np.gradient(A,V,edge_order=2)
+    Pp = -dAdV
     
     #Calcule pressure
+    n = 10000
     P = -f+rho*u
     a = (P[n/2-15]-P[n/2+15])/(rho[n/2-15]-rho[n/2+15])
     b = P[n/2+15]-a*rho[n/2+15]
@@ -843,9 +872,12 @@ def coexistence_dens(rho1,f1):
         P[i]=a*rho[i]+b
         i = i + 1
 
+
+    #P = Pp
+
     #First derivative
     #drho = rho[1]-rho[0]
-    Pspl = splrep(rho,P,k=3,s=2)         #Cubic Spline Representation
+    Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
     P = splev(rho,Pspl,der=0)
     dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
 
@@ -920,28 +952,39 @@ def coexistence_dens(rho1,f1):
     Pf2rr = splev(rho,Pf2spln)
     Pf1roots = InterpolatedUnivariateSpline(rho,Pf1rr).roots()
     Pf2roots = InterpolatedUnivariateSpline(rho,Pf2rr).roots()
+    rho1 = np.amin(Pf1roots)
+    rho2 = np.amax(Pf2roots)
 
-    #print 'rhoss',rho[0],rhomax,rhomin,rho[min2]
+    #print 'roots',Pf1roots,Pf2roots
     #input('...')
     
-    i = 0
-    rho1=rho[0]-1
-    while rho1<rho[0] and rho1<0:
-        rho1 = Pf1roots[i]
-        i = i+1
-    if Pf1roots[0]>Pf2roots[0]:
-        rho1 = 0.1
-    rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-7)
+    #i = 0
+    #rho1=rho[0]-1
+    #while rho1<rho[0] and rho1<0:
+    #    rho1 = Pf1roots[i]
+    #    i = i+1
+    #if Pf1roots[0]>Pf2roots[0]:
+    #    rho1 = 0.1
+    #rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-7)
+     
     
-    
-    i = 0
-    rho2 = rhomin-1
-    while rho2<rhomin:
-        rho2 = Pf2roots[i]
-        i = i+1
-    rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-7)
+    #i = 0
+    #rho2 = rhomin-1
+    #while rho2<rhomin:
+    #    rho2 = Pf2roots[i]
+    #    i = i+1
+    #rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-7)
 
     #print 'rho1,rho2',rho1,rho2
+    #print 'max',rho[0],rhomax
+    #print 'min',rhomin,rho[min2]
+    #print 'Pmin/max',Pmin,Pmax
+
+    #plt.plot(rho,P,'r-')
+    #plt.plot(rho,Pp,'g-.')
+    #plt.ylim(7,8)
+    #plt.show()
+
     #Solve newton-raphson system
     tol = 1e-10
     drho1 = tol+1
@@ -952,19 +995,20 @@ def coexistence_dens(rho1,f1):
     drho1old = tol+1
     stop = 1.0
     counter = 0
-    
+
     uspl = splrep(rho,u,k=3)
-    #Pspl = splrep(rho,P,k=3)
+    Pspl = splrep(rho,P,k=3)
     fspl1 = splev(rho,fspl)
     uspl1 = splev(rho,uspl)
+    Pspl1 = splev(rho,Pspl)
     dudrho = splev(rho,uspl,der=1)
     dPdrho = splev(rho,Pspl,der=1)
     Nitmax = 1000
-    Nit = 0    
-    
+    Nit = 0
+
     #print '................'
     #print rho1,rho2
- 
+
     #plt.plot(rho,P)
     #plt.ylim(8,10)
     #plt.show()
@@ -973,15 +1017,20 @@ def coexistence_dens(rho1,f1):
     #plt.ylim(-0.001,0.001)
     #plt.show()
 
-    while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
+    while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-4) and (Nit<Nitmax):
     #while (abs(drho1)>tol or abs(drho2)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
         Nit = Nit+1
-        f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
-        f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
+        rho1 = rho1 + stop*drho1
+        rho2 = rho2 + stop*drho2
+
+        #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
+        #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
         u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
         u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
-        P1 = -f1+rho1*u1
-        P2 = -f2+rho2*u2
+        #P1 = -f1+rho1*u1
+        #P2 = -f2+rho2*u2
+        P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
+        P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
 
         du1 = InterpolatedUnivariateSpline(rho,dudrho,k=3)(rho1)
         du2 = InterpolatedUnivariateSpline(rho,dudrho,k=3)(rho2)
@@ -992,25 +1041,35 @@ def coexistence_dens(rho1,f1):
         drho2 = -du1/detJ*(P1-P2)+dP1/detJ*(u1-u2)
         drho1 = -du2/detJ*(P1-P2)+dP2/detJ*(u1-u2)
 
-        if drho1>400:
-            drho1=400
-        if drho1<-400:
-            drho1=-400
-        if drho2>400:
-            drho2=400
-        if drho2<-400:
-            drho2=-400
-        rho1 = rho1 + stop*drho1
-        rho2 = rho2 + stop*drho2
+        #if drho1>500:
+        #    drho1=500
+        #if drho1<-500:
+        #    drho1=-500
+        #if drho2>500:
+        #    drho2=500
+        #if drho2<-500:
+        #    drho2=-500
+        if rho1>rhomax:
+            #if P2>Pmax:
+            #    Pf1 = P - Pmax
+            #else:
+            #    Pf1 = P - P2
+            rho1 = numerical.falsi_spline(rho,Pf,rho[0],rhomax,1e-5)
+        if rho2<rhomin:
+            #if P1<Pmin:
+            #    Pf2 = P - Pmin
+            #else:
+            #    Pf2 = P - P1
+            rho2 = numerical.falsi_spline(rho,Pf,rhomin,rho[min2],1e-5)
         
         du = abs(u1-u2)
         dP = abs(P1-P2)
-        #print rho1,rho2,du,dP,drho1,drho2,stop
+        #print rho1,rho2,du,dP,drho1,drho2,stop,Nit
 
         if counter>0 and (drho1>drho1old and drho2>drho2old):
             rho1 = rho1 - stop*drho1
             rho2 = rho2 - stop*drho2
-            stop = stop/1.05 #Break
+            stop = stop/1.005 #Break
             rho1 = rho1 + stop*drho1/2
             rho2 = rho2 + stop*drho2/2
             #print stop,counter
@@ -1021,16 +1080,18 @@ def coexistence_dens(rho1,f1):
         duold = du
         dPold = dP
 
-    if abs(Pmax-Pmin)<1e-3:
+    if abs(Pmax-Pmin)<1e-4:
         rho1 = (rhomax+rhomin)/2
         rho2 = rho1
 
-    f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
-    f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
+    #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
+    #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
     u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
     u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
-    P1 = -f1+rho1*u1
-    P2 = -f2+rho2*u2
+    #P1 = -f1+rho1*u1
+    #P2 = -f2+rho2*u2
+    P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
+    P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
 
     dens = []
     dens.append(rho1)
@@ -1055,7 +1116,7 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
     
     print 'T:   dens_vap:   dens_liq:   P:'
     while T<=Tfinal:
-        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         dens = coexistence_dens(ren[2],ren[0])
         Tv.append(T)
         rhov.append(dens[0])
@@ -1084,7 +1145,7 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
     
     print 'T:   dens_vap:   dens_liq:   P:'
     while T<=Tfinal:
-        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         dens = coexistence_dens(ren[2],ren[0])
         Tv.append(T)
         rhov.append(dens[0])
@@ -1103,7 +1164,7 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
 #======================================================================================  
 
 #Given initial T, using renormalization method, build P-rho envelope-------------------
-def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est):
     
     env = []
     Tv = []
@@ -1116,12 +1177,13 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
-        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
         dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
+        if (dens[2]!=0):
+            Tv.append(T)
+            rhov.append(dens[0])
+            rhol.append(dens[1])
+            Pv.append(dens[2])
         Fobj = abs(dens[0]-dens[1])
 
         #ren_p = renormalization.renorm(EoS,IDs,MR,T*(1+h),nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
@@ -1140,8 +1202,11 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
         #print T,dens[0],dens[1],Fobj,Fobj_plus,Fobj_minus,Fobj_derivative,step
         print T,dens[0],dens[1],dens[2]
 
+        if dens[2]==0:
+            T = T - step
+            Fobj = 50
         if Fobj>3000:
-            step = 0.5
+            step = 1.0
         if Fobj>1000 and Fobj<=3000:
             step = 0.1
         if Fobj>100 and Fobj<=1000:
@@ -1152,8 +1217,11 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
             step = 0.001
         T = T + step
         i = i+1
-        
-    report_crit(T-step,dens[2],dens[0],IDs)
+    
+    if estimate_bool==True:
+        report_crit(T-step,dens[2],dens[0],IDs,L__est,phi__est)
+    else:
+        report_crit(T-step,dens[2],dens[0],IDs,0,0)
     env.append(Tv)
     env.append(rhov)
     env.append(rhol)
@@ -1162,15 +1230,28 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
 #======================================================================================  
 
 #Report found critical data------------------------------------------------------------
-def report_crit(Tc,Pc,rhoc,IDs):
+def report_crit(Tc,Pc,rhoc,IDs,Lc,phic):
     title = 'critical.log'
-    Lc = float(data.L(IDs)[0])
-    phic = float(data.phi(IDs)[0])
+    if Lc==0 and phic==0:
+        Lc = float(data.L(IDs)[0])
+        phic = float(data.phi(IDs)[0])
     savedir = str('../output/%s' %title)
     with open(savedir,'a') as file:
         lin1 = [str(round(Tc,9)),str(round(Pc,9)),str(round(rhoc,9)),str('%.2E' %Lc),str(round(phic,9))]
         lin = ('%s\n' % ';'.join(lin1))
         file.write(lin)
+#======================================================================================
+
+#Report found critical data------------------------------------------------------------
+def report_crit_map(Lc,phic,Tc,Pc,rhoc,IDs):
+    title = 'critical_map.log'
+    savedir = str('../output/%s' %title)
+    for i in range(0,len(Lc)):
+        for j in range(0,len(phic)):
+            with open(savedir,'a') as file:
+                lin1 = [str(round(Tc[i][j],9)),str(round(Pc[i][j],9)),str(round(rhoc[i][j],9)),str('%.2E' %Lc[i]),str(round(phic[j],9))]
+                lin = ('%s\n' % ';'.join(lin1))
+                file.write(lin)
 #======================================================================================
 
 #Given initial T, using renormalization method, estimate L and phi parameters----------
@@ -1188,82 +1269,44 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     Fobj_minus_old = 1e-5
 
     tol = 1e-7
-    T = 512.6
+    #T = 500
+    Tfinal = 1000.0
     phi = 1.0
-    L = 4.0e-10
-    step = tol+1
+    L = 1.0e-10
+    Lsize = 60
+    phisize = 20
+    Ls = np.linspace(3e-10,9e-10,Lsize)
+    phis = np.linspace(1.0,5.0,phisize)
+    Tcmap = np.empty((Lsize,phisize))
+    Pcmap = np.empty((Lsize,phisize))
+    rhocmap = np.empty((Lsize,phisize))
+    estimate_bool = True
     i = 0
-    
-    print 'T:   dens_vap:   dens_liq:   P:'
-    while math.fabs(step)>tol:
-        ren = renormalization.renorm_est(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L)
-        dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
-        Fobj = math.fabs(dens[0]-dens[1])
-        #print 'central',T,dens[0],dens[1],dens[2],Fobj
+    print 'L  |  phi  |  Tc  |  Pc  |  rhoc'
+    for j in range(0,phisize):
+        for i in range(0,Lsize):
+            env = PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,Ls[i],phis[j])
+            size = len(env[0])
+            Tc = env[0][size-1]
+            rhoc = env[1][size-1]
+            Pc = env[3][size-1]
+            #report_crit(Tc,Pc,rhoc,IDs,Ls[i],phis[j])
+            Tcmap[i][j] = Tc
+            Pcmap[i][j] = Pc
+            rhocmap[i][j] = rhoc
+            T = Tc-10
+            print Ls[i],phis[j],Tcmap[i][j],Pcmap[i][j],rhocmap[i][j]
 
-        ren = renormalization.renorm_est(EoS,IDs,MR,T+1,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L)
-        dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
-        Fobj_plus = math.fabs(dens[0]-dens[1])
-        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
-
-        ren = renormalization.renorm_est(EoS,IDs,MR,T-1,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L)
-        dens = coexistence_dens(ren[2],ren[0])
-        Tv.append(T)
-        rhov.append(dens[0])
-        rhol.append(dens[1])
-        Pv.append(dens[2])
-        Fobj_minus = math.fabs(dens[0]-dens[1])
-        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
-
-        Fobj_derivative = (Fobj_plus-Fobj_minus)/(2*phi*1e-5)
-        if i==0:
-            Fobj_derivative=1e6
-        #step = -Fobj/Fobj_derivative
-        #phi = phi + step
-        if phi<0:
-            phi = phi - step
-            phi = phi + step/1e3
-        #print 'given step',phi,step,Fobj,Fobj_derivative
-        i = i+1
-        print L,phi,Fobj,Fobj_minus,Fobj_plus
-        
-        L = L+0.1e-10
-        if Fobj_minus<Fobj_minus_old:
-            phi = phi+0.01
-            L = L-0.1e-10
-        
-        diffs.append(Fobj)
-        Ls.append(L)
-        phis.append(phi)
-
-        Fobj_old = Fobj
-        Fobj_plus_old = Fobj_minus
-        Fobj_minus_old = Fobj_plus
-
-        #if L>9e-10:
-        #    phi = phi + 0.1
-        #    L = 1e-10
-        
-        #if phi>8.0:
-        #    phi = 1.0
-        #    L = L + 0.1e-10
-        
-        #raw_input('...')
-        
-        
-    env.append(Tv)
-    env.append(rhov)
-    env.append(rhol)
-    env.append(Pv)
-    return env
+    report_crit_map(Ls,phis,Tcmap,Pcmap,rhocmap,IDs)
+    crit_map = []
+    crit_map.append(Tcmap)
+    crit_map.append(Pcmap)
+    crit_map.append(rhocmap)
+    #env.append(Tv)
+    #env.append(rhov)
+    #env.append(rhol)
+    #env.append(Pv)
+    return crit_map
 #====================================================================================== 
 
 #Given initial T, using renormalization method, calculate derivative properties--------
@@ -1297,19 +1340,19 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
         T1.append(T)
         T2.append(T+T*h)
         
-        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres1.append(ren[7])
         rho1.append(ren[2])
         P1.append(ren[8])
         #print 'central',T,dens[0],dens[1],dens[2],Fobj
 
-        ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres2.append(ren[7])
         rho2.append(ren[2])
         P2.append(ren[8])
         #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
 
-        ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres0.append(ren[7])
         rho0.append(ren[2])
         P0.append(ren[8])
@@ -1468,7 +1511,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+            env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         print 'PV envelope calculated'
 
         print 'Creating pure PV report'
@@ -1491,7 +1534,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             nd = 400
             nx = 200
             n = 5
-            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
             r_data = []
@@ -1521,7 +1564,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             nd = 40
             nx = 40
             n = 5
-            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
             r_data = []

@@ -188,3 +188,41 @@ def secant_spline(x,y,a,b,tol):
         print fxi1,xi1
     return xi1
 #==========================================================================================
+
+#Calculates Maxwell Construction Area------------------------------------------------------
+def maxwell_area(args,Pint):
+    rho        = args[0]
+    P_original = args[1]
+    rho0       = args[2]
+    rhomax     = args[3]
+    rhomin     = args[4]
+    rhomin2    = args[5]
+    Pvec = P_original - Pint
+    n = len(rho)
+    rho1 = falsi_spline(rho,Pvec,rho0,rhomax,1e-7)
+    rho2 = falsi_spline(rho,Pvec,rhomax,rhomin,1e-7)
+    rho3 = falsi_spline(rho,Pvec,rhomin,rhomin2,1e-7)
+    ind1 = False
+    ind2 = False
+    ind3 = False
+    for j in range(0,n):
+        if rho1-rho[j]<0 and (ind1==False):
+            rho1ind = j-1
+            ind1 = True
+        if rho2-rho[j]<0 and (ind2==False):
+            rho2ind = j-1
+            ind2 = True
+        if rho3-rho[j]<0 and (ind3==False):
+            rho3ind = j-1
+            ind3 = True
+    if abs(rho1-rho2)<1e-3:
+        area1 = 0
+    else:
+        area1 = trapezoidal(rho,P_original,rho1ind,rho2ind)
+    if abs(rho2-rho3)<1e-3:
+        area2 = 0
+    else:
+        area2 = trapezoidal(rho,P_original,rho2ind,rho3ind)
+    area = abs(area1-area2)
+    return area
+#==========================================================================================

@@ -1,4 +1,184 @@
-#############HOLDS OLDER OR NON-WORKING VERSIONS OF SOME FUNCTIONS###############
+#############HOLDS OLDER OR NON-WORKING VERSIONS OR PIECES OF SOME FUNCTIONS###############
+
+#Given initial T, using renormalization method, estimate L and phi parameters----------
+def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+
+    diffs = []
+    Ls = []
+    phis = []
+    Fobj_minus_old = 1e-5
+
+    tol = 1e-7
+    T = 512.6
+    phi = 1.0
+    L = 4.0e-10
+    step = tol+1
+    i = 0
+    
+    print 'T:   dens_vap:   dens_liq:   P:'
+    while math.fabs(step)>tol:
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj = math.fabs(dens[0]-dens[1])
+        #print 'central',T,dens[0],dens[1],dens[2],Fobj
+
+        ren = renormalization.renorm_est(EoS,IDs,MR,T+1,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj_plus = math.fabs(dens[0]-dens[1])
+        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
+
+        ren = renormalization.renorm_est(EoS,IDs,MR,T-1,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+        dens = coexistence_dens(ren[2],ren[0])
+        Tv.append(T)
+        rhov.append(dens[0])
+        rhol.append(dens[1])
+        Pv.append(dens[2])
+        Fobj_minus = math.fabs(dens[0]-dens[1])
+        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
+
+        Fobj_derivative = (Fobj_plus-Fobj_minus)/(2*phi*1e-5)
+        if i==0:
+            Fobj_derivative=1e6
+        #step = -Fobj/Fobj_derivative
+        #phi = phi + step
+        if phi<0:
+            phi = phi - step
+            phi = phi + step/1e3
+        #print 'given step',phi,step,Fobj,Fobj_derivative
+        i = i+1
+        print L,phi,Fobj,Fobj_minus,Fobj_plus
+        
+        L = L+0.1e-10
+        if Fobj_minus<Fobj_minus_old:
+            phi = phi+0.01
+            L = L-0.1e-10
+        
+        diffs.append(Fobj)
+        Ls.append(L)
+        phis.append(phi)
+
+        Fobj_old = Fobj
+        Fobj_plus_old = Fobj_minus
+        Fobj_minus_old = Fobj_plus
+
+        #if L>9e-10:
+        #    phi = phi + 0.1
+        #    L = 1e-10
+        
+        #if phi>8.0:
+        #    phi = 1.0
+        #    L = L + 0.1e-10
+        
+        #raw_input('...')
+        
+        
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    return env
+#====================================================================================== 
+
+
+############TRIED TO IMPLEMENT PSO TO USE MAXWELL CONSTRUCTION====================================================
+
+    nmap = 50
+    P11 = np.empty((nmap,nmap))
+    P22 = np.empty((nmap,nmap))
+    u11 = np.empty((nmap,nmap))
+    u22 = np.empty((nmap,nmap))
+    dmap = np.empty((nmap,nmap))
+    dens1 = np.empty((nmap))
+    dens2 = np.empty((nmap))
+    dens1 = np.linspace(rho1,rhomax,nmap)
+    dens2 = np.linspace(rhomin,rho2,nmap)
+    #for i in range(0,nmap):
+    #    print i
+    #    for j in range(0,nmap):
+    #        rho1 = dens1[i]
+    #        rho2 = dens2[j]
+    #        P11[i][j] = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
+    #        P22[i][j] = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
+    #        u11[i][j] = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
+    #        u22[i][j] = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
+    #        dP = abs(P11[i][j]-P22[i][j])*1e5
+    #        du = abs(u11[i][j]-u22[i][j])*1e5
+    #        dmap[i][j] = dP+du
+
+    #TRY MAXWELL'S CONSTRUCTION
+    #Plin = np.linspace(Pmin,Pmax,10)
+    #area = np.empty((10))
+    #for i in range(0,10):
+    #    print 'i',i
+    #    Pint = P-Plin[i]
+    #    rho1 = numerical.falsi_spline(rho,Pint,rho[0],rhomax,1e-7)
+    #    print 'rho1',rho1
+    #    rho2 = numerical.falsi_spline(rho,Pint,rhomax,rhomin,1e-7)
+    #    print 'rho2',rho2
+    #    rho3 = numerical.falsi_spline(rho,Pint,rhomin,rho[min2],1e-7)
+    #    print 'rho3',rho3
+
+    #    ind1 = False
+    #    ind2 = False
+    #    ind3 = False
+    #    for j in range(0,10000):
+    #        if rho1-rho[j]<0 and (ind1==False):
+    #            rho1ind = j-1
+    #            ind1 = True
+    #        if rho2-rho[j]<0 and (ind2==False):
+    #            rho2ind = j-1
+    #            ind2 = True
+    #        if rho3-rho[j]<0 and (ind3==False):
+    #            rho3ind = j-1
+    #            ind3 = True
+    #    print 'inds',rho1ind,rho2ind,rho3ind
+
+    #    if abs(rho1-rho2)<1e-3:
+    #        area1 = 0
+    #    else:
+    #        area1 = numerical.trapezoidal(rho,P,rho1ind,rho2ind)
+    #    if abs(rho2-rho3)<1e-3:
+    #        area2 = 0
+    #    else:
+    #        area2 = numerical.trapezoidal(rho,P,rho2ind,rho3ind)
+    #    area[i] = abs(area1-area2)
+    #    print area1,area2,area[i]
+    #print area
+
+    nparticles = 2 #number of particles
+    nparameter = 1 #number of parameters to adjust
+    ndata = 1
+    Plin = np.linspace(Pmin,Pmax,nparticles)
+    argvec = []
+    argvec.append(rho)
+    argvec.append(P)
+    argvec.append(rho[0])
+    argvec.append(rhomax)
+    argvec.append(rhomin)
+    argvec.append(rho[min2])
+    Fmin = np.empty((1))
+    Fmin[0] = 1e-10
+    #Optimize parameters with PSO
+    P_list = []
+    P_list.append(Plin)
+    #P_opt = PSO.PSO_1(nparticles,nparameter,ndata,P_list,Fmin,numerical.maxwell_area,argvec,Pmax,Pmin)
+    #print P_opt
+#############################################################=============================================
+
 
 #Given pure component isotherm, calculates phase coexistence densities-----------------
 def coexistence_dens_2(rho1,f1):
