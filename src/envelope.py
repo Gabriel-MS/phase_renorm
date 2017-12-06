@@ -1054,13 +1054,13 @@ def coexistence_dens(rho1,f1):
             #    Pf1 = P - Pmax
             #else:
             #    Pf1 = P - P2
-            rho1 = numerical.falsi_spline(rho,Pf,rho[0],rhomax,1e-5)
+            rho1 = numerical.falsi_spline(rho,Pf1,rho[0],rhomax,1e-5)
         if rho2<rhomin:
             #if P1<Pmin:
             #    Pf2 = P - Pmin
             #else:
             #    Pf2 = P - P1
-            rho2 = numerical.falsi_spline(rho,Pf,rhomin,rho[min2],1e-5)
+            rho2 = numerical.falsi_spline(rho,Pf2,rhomin,rho[min2],1e-5)
         
         du = abs(u1-u2)
         dP = abs(P1-P2)
@@ -1101,6 +1101,93 @@ def coexistence_dens(rho1,f1):
     dens.append(u1)
     dens.append(u2)
     #input('...')
+    
+    return dens
+#======================================================================================
+
+#Given pure component isotherm, calculates phase coexistence densities-----------------
+def inflex_search(rho1,f1):
+
+    rho1 = np.array(rho1)
+    f1 = np.array(f1)
+    n = f1.shape[1]
+    rho = rho1.flatten()
+    f = f1.flatten()
+
+    #Spline to get chemical potential
+    fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+
+    #--------
+    rhomax = rho[n-1]
+    rhomaxmax = rhomax
+    rho2 = np.empty((10000))
+    #print n,rhomax
+    for i in range(0,10000):
+        rho2[i] = i*rhomax/10000
+        #print rho2[i],i,float(i/10000)
+    rho2[0] = 1e-5
+    f2 = splev(rho2,fspl)        #Evaluate Cubic Spline First derivative
+    f = f2
+    rho = rho2
+    fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+    n = 10000
+    #--------
+
+    u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
+    
+    drho = rho[n/2]-rho[n/2-1]
+    #for i in range(1,n-2):
+    #    u[i] = (f[i+1]-f[i-1])/(2*drho)
+    #u[n-1] = (f[n-1]-f[n-2])/drho
+    #u[0] = (f[1]-f[0])/drho
+    
+    V = 1/rho2
+    A = f2/rho2
+    dAdV = np.gradient(A,V,edge_order=2)
+    Pp = -dAdV
+    
+    #Calcule pressure
+    n = 10000
+    P = -f+rho*u
+    a = (P[n/2-15]-P[n/2+15])/(rho[n/2-15]-rho[n/2+15])
+    b = P[n/2+15]-a*rho[n/2+15]
+    i = n/2-15
+    while i<(n/2+15):
+        P[i]=a*rho[i]+b
+        i = i + 1
+
+
+    #P = Pp
+
+    Pspl = splrep(rho,P,k=3)
+    P = splev(rho,Pspl,der=0)
+    dPdrho = splev(rho,Pspl,der=1)
+    d2Pdrho2 = splev(rho,Pspl,der=2)
+
+    inflex = False
+
+    dens = []
+    minP = np.argmin(d2Pdrho2)
+    dist = d2Pdrho2[minP]
+    if d2Pdrho2[minP]>0: #There is no inflexion
+        rhoc = rho2(minP)
+        Pc = P(minP)
+        inflex = True
+        dens.append(rhoc)
+        dens.append(rhoc)
+        dens.append(Pc)
+        dens.append(Pc)
+        dens.append(0)
+        dens.append(dist)
+        dens.append(inflex)
+    else:
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(dist)
+        dens.append(inflex)
     
     return dens
 #======================================================================================
@@ -1174,6 +1261,8 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     Fobj = 2.0
     i = 0
     h = 0
+    step = 1.0
+    flag0 = False
     
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
@@ -1202,42 +1291,114 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
         #print T,dens[0],dens[1],Fobj,Fobj_plus,Fobj_minus,Fobj_derivative,step
         print T,dens[0],dens[1],dens[2]
 
+        if dens[2]!=0:
+            flag0 = False
+        if flag0 == True:
+            T = T - 1.0
         if dens[2]==0:
             T = T - step
             Fobj = 50
+            if flag0 == True:
+                T = T - 1.0
+            else:
+                flag0 = True
+
         if Fobj>3000:
-            step = 1.0
+            step = 2.0#1.0
         if Fobj>1000 and Fobj<=3000:
-            step = 0.1
+            step = 1.0#0.5
         if Fobj>100 and Fobj<=1000:
-            step = 0.05
+            step = 0.5#0.05
         if Fobj>10 and Fobj<=100:
-            step = 0.01
+            step = 0.1#0.01
         if Fobj<10:
-            step = 0.001
+            step = 0.01#0.001
+        step = Fobj/2e3
         T = T + step
         i = i+1
     
     if estimate_bool==True:
-        report_crit(T-step,dens[2],dens[0],IDs,L__est,phi__est)
+        crit_exp = renormalization.critical_exponents(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est,T-step,dens[0])
+        report_crit(T-step,dens[2],dens[0],IDs,L__est,phi__est,crit_exp[0])
     else:
-        report_crit(T-step,dens[2],dens[0],IDs,0,0)
+        report_crit(T-step,dens[2],dens[0],IDs,0,0,0)
     env.append(Tv)
     env.append(rhov)
     env.append(rhol)
     env.append(Pv)
+    if estimate_bool==True:
+        env.append(crit_exp[0])
+    else:
+        env.append(0.000)
+    return env
+#======================================================================================  
+
+#Given initial T, using renormalization method, build P-rho envelope-------------------
+def PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+    Fobj = 2.0
+    i = 0
+    h = 0
+    step = 1.0
+    flag0 = False
+    flagI = False
+    
+    print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
+    while flagI==False:
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
+        ans = inflex_search(ren[2],ren[0])
+        Fobj = ans[5]
+        flagI = ans[6]
+
+        print T,ans[0],ans[1],ans[2],ans[5],ans[6]
+
+        if Fobj>1e-5:
+            step = -1e0
+        if Fobj>1e-7 and Fobj<=1e-5:
+            step = -1e-1
+        if Fobj>1e-10 and Fobj<=1e-7:
+            step = -1e-2
+
+        if Fobj<-1e-5:
+            step = 1e0
+        if Fobj<-1e-7 and Fobj>=-1e-5:
+            step = 1e-1
+        if Fobj<-1e-10 and Fobj>=-1e-7:
+            step = 1e-2
+
+        T = T + step
+        i = i+1
+    
+    if estimate_bool==True:
+        crit_exp = renormalization.critical_exponents(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est,T-step,ans[0])
+        report_crit(T-step,ans[2],ans[0],IDs,L__est,phi__est,crit_exp[0])
+    else:
+        report_crit(T-step,ans[2],ans[0],IDs,0,0,0)
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    if estimate_bool==True:
+        env.append(crit_exp[0])
+    else:
+        env.append(0.000)
     return env
 #======================================================================================  
 
 #Report found critical data------------------------------------------------------------
-def report_crit(Tc,Pc,rhoc,IDs,Lc,phic):
+def report_crit(Tc,Pc,rhoc,IDs,Lc,phic,beta):
     title = 'critical.log'
     if Lc==0 and phic==0:
         Lc = float(data.L(IDs)[0])
         phic = float(data.phi(IDs)[0])
     savedir = str('../output/%s' %title)
     with open(savedir,'a') as file:
-        lin1 = [str(round(Tc,9)),str(round(Pc,9)),str(round(rhoc,9)),str('%.2E' %Lc),str(round(phic,9))]
+        lin1 = [str(round(Tc,9)),str(round(Pc,9)),str(round(rhoc,9)),str('%.2E' %Lc),str(round(phic,9)),str(round(beta,9)),str(round(IDs[0],9))]
         lin = ('%s\n' % ';'.join(lin1))
         file.write(lin)
 #======================================================================================
@@ -1269,14 +1430,14 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     Fobj_minus_old = 1e-5
 
     tol = 1e-7
-    #T = 500
+    Tinit = T
     Tfinal = 1000.0
     phi = 1.0
     L = 1.0e-10
     Lsize = 60
-    phisize = 20
-    Ls = np.linspace(3e-10,9e-10,Lsize)
-    phis = np.linspace(1.0,5.0,phisize)
+    phisize = 50
+    Ls = np.linspace(3.00e-10,9.00e-10,Lsize)
+    phis = np.linspace(0.01,10.0,phisize)
     Tcmap = np.empty((Lsize,phisize))
     Pcmap = np.empty((Lsize,phisize))
     rhocmap = np.empty((Lsize,phisize))
@@ -1284,6 +1445,7 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     i = 0
     print 'L  |  phi  |  Tc  |  Pc  |  rhoc'
     for j in range(0,phisize):
+        T = Tinit
         for i in range(0,Lsize):
             env = PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,Ls[i],phis[j])
             size = len(env[0])
@@ -1294,8 +1456,8 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
             Tcmap[i][j] = Tc
             Pcmap[i][j] = Pc
             rhocmap[i][j] = rhoc
-            T = Tc-10
-            print Ls[i],phis[j],Tcmap[i][j],Pcmap[i][j],rhocmap[i][j]
+            T = Tc-1
+            print Ls[i],phis[j],Tcmap[i][j],Pcmap[i][j],rhocmap[i][j],env[4]
 
     report_crit_map(Ls,phis,Tcmap,Pcmap,rhocmap,IDs)
     crit_map = []

@@ -1,5 +1,142 @@
 #############HOLDS OLDER OR NON-WORKING VERSIONS OR PIECES OF SOME FUNCTIONS###############
 
+#Outputs renormalized csv file of given EoS at give T-------------------------------------
+def renorm_est(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,phi,L):
+    #nd    Size of density grid
+    #nx    Size of mole fraction grid
+    #n     Main loop iteration controller
+    
+    #If only 1 component is present mimic a binary mixture made of the same component
+    if nc==1:
+        IDs[1] = IDs[0]
+    
+    #Recover parameters
+    #L_rg = data.L(IDs)         #Vector with L parameters (cutoff length)
+    #phi_rg = data.phi(IDs)     #Vector with phi parameters
+    Tc = data.Tc(IDs)
+    
+    #Components parameters
+    a = eos.a_calc(IDs,EoS,T)
+    b = eos.b_calc(IDs,EoS)
+    Tr = T/np.array(Tc)
+    
+    #Main loop parameters
+    x = np.array([0.0001,0.9999])
+    stepx = (1/float(nx)) #Step to calculate change
+    k = 0               #Vector fill counter
+    i = 1               #Main loop counter
+    r = 0               #Report counter
+    rho = np.empty((nd))            #Density vector
+    rhov = []                       #Density vector to export
+    x0v = []                        #Mole fraction vector to export
+    f = np.empty((nd))              #Helmholtz energy density vector
+    fv = []                         #Helmholtz energy density vector to export
+    fresv = []                      #Residual Helmholtz energy density vector to export
+    Tv = []                         #Temperature values to export
+    df = np.empty((nd))             #Changes in helmholtz energy density vector
+    f_orig = np.empty((nd))         #Unmodified Helmholtz energy density vector
+    X = np.ones((4*nc))
+    
+    if nc==1:
+        X = np.ones((8))
+    
+    #Main loop*************************************
+    while x[0]<1.0:
+        if x[0]==0.006: #after first step
+            x[0]=0.005
+            x[1]=1-x[0]
+        
+        if nc==1:
+            x[0] = 0.999999
+            x[1] = 0.000001
+        
+        #Mixture parameters
+        bmix = eos.bmix_calc(MR,b,x)
+        amix = eos.amix_calc(MR,a,x,kij)
+        rhomax = 0.999999
+        
+        #Mixture Renormalization parameters
+        #L = np.dot(x,np.power(L_rg,3.0))
+        #L = np.power(L,1.0/3.0)
+        #phi = np.dot(x,phi_rg)
+        
+        for k in range(0,nd):
+            rho[k] = np.array(float(k)/nd/bmix)
+            if k==0:
+                rho[0] = 1e-6
+            if EoS==6:
+                Xf = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
+                X = Xf
+            f[k] = np.array(helm_rep(EoS,R,T,rho[k],amix,bmix,X,x,nc))   #Helmholtz energy density
+            f_orig[k] = f[k]                                #Initial helmholtz energy density
+            
+            #Subtract attractive forces (due long range correlations)
+            f[k] = f[k] + amix*(rho[k]**2)
+            k = k+1
+            
+            
+        #Adimensionalization
+        rho = rho*bmix
+        f = f*bmix*bmix/amix
+        T = T*bmix*R/amix
+    
+
+        rho1 = rho.flatten()
+
+        #Main loop****************************************************************
+        i = 1
+        while i<n:
+            #K = kB*T/((2**(3*i))*(L**3))
+            K = T/(2**(3*i))/((L**3)/bmix*6.023e23)
+            
+            #Long and Short Range forces
+            fl = helm_long(EoS,rho,f)
+            fs = helm_short(EoS,rho,f,phi,i)
+
+            #Calculate df
+            width = rhomax/nd
+            w = 0
+            for w in range(0,nd):
+                df[w] = renorm_df(w,nd,fl,fs,K,rho,width)
+
+            #Update Helmholtz Energy Density
+            df = np.array(df)
+            f = f + df
+            i = i+1
+
+        #Dimensionalization
+        rho = rho/bmix
+        f = f/bmix/bmix*amix
+        T = T/bmix/R*amix
+        
+        #Add original attractive forces
+        f = f - amix*(rho**2)
+        
+        #Store residual value of f, calculate helmholtz energy density adding ideal gas energy
+        fres = f
+        f = f + rho*R*T*(np.log(rho)-1)
+
+        if(EoS==6):
+			f = fres
+        
+        fv.append(f)
+        fresv.append(fres)
+        x0v.append(x[0])
+        
+        if r==0:
+            rhov.append(rho) #rho vector is always the same
+        r=1
+        
+        x[0] = x[0]+stepx
+        
+    renorm_out = []
+    renorm_out.append(fv)
+    renorm_out.append(x0v)
+    renorm_out.append(rhov)
+    renorm_out.append(fresv)
+    return renorm_out
+#=========================================================================================
+
 #Given initial T, using renormalization method, estimate L and phi parameters----------
 def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     

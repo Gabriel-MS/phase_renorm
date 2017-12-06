@@ -1,10 +1,13 @@
 import numpy as np
+import funcs
 import math
-import numerical
 
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+print 'PSO routine to find minimum of defined objective function'
+print '=========================================================\n'
 
 #Standard PSO routine-------------------------------------------------------------------------------
 def PSO(nparam,ndata,nswarm,objFunc,args,p):
@@ -250,3 +253,35 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
     plt.savefig('xy.png')
     return best_swarm_pos  
 #===================================================================================================
+
+#----------data to create optimum data---------
+best = []
+best.append(7.39)
+best.append(-3.39)
+xdata = np.array([1,2,3,4,5,6,7,8,9,10])
+#ydata = funcs.quad12(5,5)
+ydata = funcs.quad12(5,5)
+
+#Particles and PSO definitions
+nparameter = 2
+ndata = 10
+nswarm = 200
+data = []
+data.append(xdata)
+p = np.empty((nswarm,nparameter))
+for i in range(0,nswarm):
+    p[i] = np.random.rand(1,nparameter)[0]*10
+print 'The data is:'
+print 'x = ',xdata
+print 'y = ',ydata
+opt_par = np.empty((nparameter))
+opt_par[0] = 5
+opt_par[1] = 5
+yobj = funcs.quad12_obj(opt_par,xdata)
+print 'yobj',yobj
+raw_input('.....')
+
+par_opt = LJPSO(nparameter,ndata,nswarm,funcs.quad12_obj,data,p)
+ycal = funcs.quad12(par_opt[0],par_opt[1])
+ycal_obj = funcs.quad12_obj(par_opt,xdata)
+print 'y',ycal,ycal_obj
