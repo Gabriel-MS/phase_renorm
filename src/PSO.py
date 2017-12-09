@@ -89,14 +89,14 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
     #args    - Objective Function arguments
     
     #Organize parameters and arguments------------------------------------
-    xdata = args[0]
+    xdata = args
     #=====================================================================   
     
     #Initialize PSO parameters--------------------------------------------
     k = 1           #iteration counter
     kmax = 10000     #max iterations allowed
-    c1 = 0.5        #weight of particle's best position distance
-    c2 = 1.0        #weight of swarm's best position distance
+    c1 = 1.5        #weight of particle's best position distance
+    c2 = 2.5        #weight of swarm's best position distance
     w = 0.5         #weight of particle's last velocity
     tol = 1e-5     #tolerance
     eps = 1.0       #epsilon LJ parameter
@@ -104,7 +104,10 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
     rc  = 1.0       #cutoff radius
     m   = np.linspace(1.0,1.0,nswarm) #mass of particles
     flagcount = 0   #Number of stationary particles
-    #=====================================================================
+    scale = np.ones((nparam)) #Parameters scale
+    for i in range(0,nparam):
+        scale[i] = numerical.magnitude(p[0][i])
+    #====================================================================
     
     #Initialize solutions-------------------------------------------------
     best_swarm_pos    = np.array(p[0])             #Best Swarm position, choosing "randomly the first particle"
@@ -163,7 +166,8 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             if flag[i]==False:
                 for j in range(0,nparam):
                     v[i][j] = w*v[i][j] + c1*np.random.rand()*(best_particle_pos[i][j]-p[i][j]) + c2*np.random.rand()*(best_swarm_pos[j]-p[i][j])
-                    p[i][j] = p[i][j] + v[i][j]
+                    #p[i][j] = p[i][j] + v[i][j]*(1*(10**(scale[j])))/10
+                    p[i][j] = p[i][j] - v[i][j]*(1*(10**(scale[j])))/10
                 
         #Forces and acceleration calculation
         #Check if distance<Cut-off
@@ -181,31 +185,20 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
                     if rij<rc: #distance between particles is less than cut-off radius
                         for j in range(0,nparam):
                             Fij = np.random.rand()*3.14/rc*math.cos(3.14*rij/rc)*(p[i][j]-p[l][j])
-                            #Fij = np.random.rand()*5/math.exp(rij/rc)
-                            #Fij = 24*eps/rij*(2*((sig/rij)**(12) - (sig/rij)**(6)))*(p[i][j]-p[l][j])
-                            #if Fij>1.0:
-                            #    Fij = 1.0
-                            #F[i][j] = F[i][j] + 24*eps/d*(2*((sig/rij)**(1/12) - (sig/rij)**(1/6)))*(p[i][j]-p[l][j])
-                            #F[l][j] = F[l][j] - 24*eps/d*(2*((sig/rij)**(1/12) - (sig/rij)**(1/6)))*(p[i][j]-p[l][j])
                             F[i][j] = F[i][j] + Fij
                             F[l][j] = F[l][j] - Fij
-                            #F[i][j] = F[i][j] + 3.14/rc*math.sin(3.14*rij/rc)*(p[i][j]-p[l][j])
-                            #F[l][j] = F[l][j] - 3.14/rc*math.sin(3.14*rij/rc)*(p[i][j]-p[l][j])
-                            #F[i][j] = 1.0
-                            #F[l][j] = 1.0
-                            #print 'Forces of i,l,j',i,l,j,F[i][j]
         #Update velocities according to forces
         #print '=========='
         for i in range(0,nswarm):
             if flag[i]==False:
                 for j in range(0,nparam):
                     a[i][j] = F[i][j]/m[i]
-                    p[i][j] = p[i][j] + a[i][j]   #Should we add it or subtract it???
+                #    p[i][j] = p[i][j] + a[i][j]*(1*(10**(scale[j])))   #Should we add it or subtract it???
                 #print a[i][j],i,j
 
         #Plot actual status
         h = k
-        if h%20==0:
+        if h%5==0:
             xa = np.empty((nswarm))
             ya = np.empty((nswarm))
             xc = np.empty((flagcount))
@@ -222,8 +215,8 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             fig = plt.figure()
             plt.plot(xa,ya,'r.')
             plt.plot(xc,yc,'g^')
-            plt.xlim(-10,10)
-            plt.ylim(-10,10)
+            plt.xlim(1e-10,9e-10)
+            plt.ylim(0,10)
             plt.savefig('xyk.png')
         
         #Update iteration counter
@@ -247,6 +240,11 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             k = k+1
     fig = plt.figure()
     plt.plot(x,y,'r.')
-    plt.savefig('xy.png')
-    return best_swarm_pos  
+    plt.savefig('../output/xy.png')
+
+    pos = []
+    pos.append(x)
+    pos.append(y)
+
+    return pos
 #===================================================================================================

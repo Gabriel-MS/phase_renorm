@@ -158,7 +158,7 @@ def plot_isothermal_dev_prop_pure(P,rho,d2AdT2,dAdT,Cv,dPdrho,inv_kT,kT,lnkT,dPd
     
     ax[1,1].plot(P_plot,w_plot)
     ax[1,1].set_xlim(xmin=0, xmax=25)
-    ax[1,1].set_ylim(ymin=0, ymax=500)
+    ax[1,1].set_ylim(ymin=800, ymax=1400)
     ax[1,1].set_ylabel('w')
     ax[1,1].set_title('w')
     

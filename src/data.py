@@ -283,7 +283,7 @@ def truncate(f, digits):
 #===========================================================================
 
 #Function to open csv file with experimental T-density curve and output data---
-def loadexp():
+def loadexp2():
     with open('../input/Methanol.csv') as csvfile:
         readCSV = csv.reader(csvfile, delimiter=';')
         next(readCSV, None)  # skip the header
@@ -308,5 +308,18 @@ def loadexp():
     expdata.append(dens_vaps)
     expdata.append(dens_liqs)
     expdata.append(Ts)
+    return expdata
+#=============================================================================
+
+#Function to open csv file and extract one column of data---------------------
+def loadexp(filename):
+    filen = ('../input/%s' %filename)
+    with open(filen) as csvfile:
+        readCSV = csv.reader(csvfile, delimiter=';')
+        expdata = []
+        flag = False
+        for row in readCSV:
+            dt = float(row[0])
+            expdata.append(dt)
     return expdata
 #=============================================================================

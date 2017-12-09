@@ -12,6 +12,7 @@ import renormalization
 import critical
 import derivativeprop
 import PSO
+import time
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -937,8 +938,11 @@ def coexistence_dens(rho1,f1):
     Pf2 = np.array(Pf2)
 
     while Pf2[min1]*Pf2[min2]>0:
-        min2 = min2 + 10
-    
+        min2 = min2 + 2
+
+    if min2>10000:
+        min2 = 10000
+
     if max2<0:
         max2 = 0
     else:
@@ -1251,7 +1255,7 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
 #======================================================================================  
 
 #Given initial T, using renormalization method, build P-rho envelope-------------------
-def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est):
+def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,crit_bool,L__est,phi__est):
     
     env = []
     Tv = []
@@ -1263,6 +1267,8 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     h = 0
     step = 1.0
     flag0 = False
+    TTc = Tfinal
+    print 'param:',L__est,phi__est
     
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
@@ -1296,7 +1302,9 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
         if flag0 == True:
             T = T - 1.0
         if dens[2]==0:
+            TTc = T
             T = T - step
+            #print 'TTc',TTc
             Fobj = 50
             if flag0 == True:
                 T = T - 1.0
@@ -1317,7 +1325,7 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
         T = T + step
         i = i+1
     
-    if estimate_bool==True:
+    if crit_bool==True:
         crit_exp = renormalization.critical_exponents(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est,T-step,dens[0])
         report_crit(T-step,dens[2],dens[0],IDs,L__est,phi__est,crit_exp[0])
     else:
@@ -1326,7 +1334,7 @@ def PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_au
     env.append(rhov)
     env.append(rhol)
     env.append(Pv)
-    if estimate_bool==True:
+    if crit_bool==True:
         env.append(crit_exp[0])
     else:
         env.append(0.000)
@@ -1390,6 +1398,85 @@ def PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     return env
 #======================================================================================  
 
+#Given initial T, using renormalization method, build P-rho envelope-------------------
+def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,crit_bool,L__est,phi__est):
+    
+    env = []
+    Tv = []
+    rhov = []
+    rhol = []
+    Pv = []
+    Fobj = 2.0
+    i = 0
+    h = 0
+    step = 1.0
+    flag0 = False
+    flagmax = False
+    TT = T
+    Tmax = 0
+    Fobjold = 1./3.
+    Tmin = 0
+    print 'param:',L__est,phi__est
+    
+    print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
+    while Fobj>0.1:
+        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
+        dens = coexistence_dens(ren[2],ren[0])
+        if (dens[2]!=0):
+            Tv.append(T)
+            rhov.append(dens[0])
+            rhol.append(dens[1])
+            Pv.append(dens[2])
+        Fobj = abs(dens[0]-dens[1])
+        #print T,dens[0],dens[1],dens[2],Tmax,Tmin
+
+        if dens[2]!=0:
+            flag0 = False
+            Tmin = T
+        if dens[2]==0:
+            flag0 = True
+
+        if flag0==True:
+            Tmax = T
+            T = T-step
+            Tmin = T
+            flagmax = True
+            Fobj = 100
+
+        if flag0==False and flagmax==False:
+            step = Fobj/2e3
+            T = T + step
+
+        if flag0==False and flagmax==True:
+            step = (Tmax-Tmin)
+            T = T + step/2
+            T = Tmin+step/2
+ 
+        if Fobjold==Fobj:
+            T = T+0.1
+        Fobjold = Fobj
+
+        if abs(dens[1])>1e10:
+            T = TT+1.0
+
+        i = i+1
+    
+    if crit_bool==True:
+        crit_exp = renormalization.critical_exponents(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est,T-step,dens[0])
+        report_crit(T-step,dens[2],dens[0],IDs,L__est,phi__est,crit_exp[0])
+    else:
+        report_crit(T-step,dens[2],dens[0],IDs,0,0,0)
+    env.append(Tv)
+    env.append(rhov)
+    env.append(rhol)
+    env.append(Pv)
+    if crit_bool==True:
+        env.append(crit_exp[0])
+    else:
+        env.append(0.000)
+    return env
+#======================================================================================  
+
 #Report found critical data------------------------------------------------------------
 def report_crit(Tc,Pc,rhoc,IDs,Lc,phic,beta):
     title = 'critical.log'
@@ -1442,12 +1529,13 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     Pcmap = np.empty((Lsize,phisize))
     rhocmap = np.empty((Lsize,phisize))
     estimate_bool = True
+    crit_bool = True
     i = 0
     print 'L  |  phi  |  Tc  |  Pc  |  rhoc'
     for j in range(0,phisize):
         T = Tinit
         for i in range(0,Lsize):
-            env = PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,Ls[i],phis[j])
+            env = PV_findTc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,crit_bool,Ls[i],phis[j])
             size = len(env[0])
             Tc = env[0][size-1]
             rhoc = env[1][size-1]
@@ -1673,7 +1761,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
         print 'PV envelope calculated'
 
         print 'Creating pure PV report'
@@ -1719,7 +1807,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         #*******************************************************************************
 
     if env_type==7:
-        #Calculate critical point*********************************************************
+        #Calculate critical point*******************************************************
 
         if EoS==2 or EoS==4 or EoS==6:
             print '\nCalculating renormalized helmholtz energy surface'
@@ -1732,6 +1820,34 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             r_data = []
 
         critical.sadus_hicks_young(r_data[4],r_data[3],r_data[1],r_data[9])
+        #*******************************************************************************
+
+    if env_type==8:
+        #Estimate Renormalization Parameters********************************************
+        nd = 400
+        nx = 200
+        n = 5
+        finalT = 530.0
+        stepT = 0.5
+        expname = []
+        expname.append('Tc_exp.data')
+        expname.append('Pc_exp.data')
+
+        print '\nEstimating Renormalization Parameters'
+        if env_type==8:
+            param = renormalization.Estimate_Parameters(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False)
+        print 'Renormalization Parameters Estimated'
+
+        #print 'Creating pure PV report'
+        #reportname = str('PV_%s.csv' %('_'.join(print_options[1])))
+        #report_PV(env_PV,print_options,reportname,print_options)
+        #print ('Report %s saved successfully' %reportname)
+
+        #print 'Starting to plot PV envelope'
+        #title = str('PV envelope\n%s' %(' + '.join(print_options[1])))
+        #figname = str('PV_%s.png' %('_'.join(print_options[1])))
+        #plot_PV(title,'Density (mol/m3)','T (K)',figname,env_PV[0],env_PV[1],env_PV[2])
+        #print ('Figure %s saved successfully' %figname)
         #*******************************************************************************
 #======================================================================================
 

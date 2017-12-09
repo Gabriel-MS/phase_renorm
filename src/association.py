@@ -163,7 +163,10 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
     x = np.array(x)
     X = np.array(X)
 
-    X = np.array([0.5,0.5,1,1,0.5,0.5,1,1])
+    #If first iteration on volume, X have all values set to 0.2
+    if Viter==0:
+        for i in range(0,nc*4):
+            X[i] = 0.2
     
     #auxiliary arrays
     one4 = np.ones((4))

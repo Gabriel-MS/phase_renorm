@@ -4,8 +4,10 @@ import data
 import eos
 import association
 import math
+import PSO
 import numerical
 import envelope
+import time
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 from scipy.interpolate import RectBivariateSpline
 from scipy import stats
@@ -94,20 +96,24 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         if estimate==True:
             L = L_est
             phi = phi_est
-        
+
         for k in range(0,nd):
             rho[k] = np.array(float(k)/nd/bmix)
             if k==0:
                 rho[0] = 1e-6
             if EoS==6:
-                X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
+                if k==0:
+                    X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
+                else:
+                    X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,1,x,0,T,SM)
             f[k] = np.array(helm_rep(EoS,R,T,rho[k],amix,bmix,X,x,nc))   #Helmholtz energy density
-            f_orig[k] = f[k]                                #Initial helmholtz energy density
-            
-            #Subtract attractive forces (due long range correlations)
-            f[k] = f[k] + 0.5*amix*(rho[k]**2)
             k = k+1
             
+        f_orig = f                                #Initial helmholtz energy density
+        #Subtract attractive forces (due long range correlations)
+        f = f + 0.5*amix*(rho**2)
+
+
         #Adimensionalization
         rho = rho*bmix
         f = f*bmix*bmix/amix
@@ -133,7 +139,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             w = 0
             for w in range(0,nd):
                 df[w] = renorm_df(w,nd,fl,fs,K,rho,width)
-
+            
             #Update Helmholtz Energy Density
             df = np.array(df)
             f = f + df
@@ -632,3 +638,104 @@ def delta_exponent(env,Tc,Pc,rhoc):
 
     return delta
 #=========================================================================================
+
+#Calculate Objective function based only on Critical Temperature--------------------------
+def objFunc_Tc(par,argss):
+
+    #Parameters
+    EoS     = argss[0]
+    IDs     = argss[1]
+    MR     = argss[2]
+    T      = argss[3]
+    Tfinal  = argss[4]
+    stepT   = argss[5]
+    nd      = argss[6]
+    nx      = argss[7]
+    kij     = argss[8]
+    nc      = argss[9]
+    CR      = argss[10]
+    en_auto = argss[11]
+    beta_auto = argss[12]
+    SM      = argss[13]
+    n       = argss[14]
+    estimate_bool = argss[15]
+    crit_bool = argss[16]
+    expfile = argss[17]
+
+    #Renormalization Parameters
+    L__est   = par[0]
+    phi__est = par[1]
+
+    #Calculate Critical Point for given parameters
+    env       = envelope.PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,crit_bool,L__est,phi__est)
+    size      = len(env[0])
+    Tc_calc   = env[0][size-1]
+    rhoc_calc = env[1][size-1]
+    Pc_calc   = env[3][size-1]
+
+    #Recover Experimental data for critical temperature
+    expT = data.loadexp(expfile[0])
+    Tc_exp = np.mean(expT)
+    var_Tc_exp = np.var(expT)
+
+    #Recover Experimental data for critical pressure
+    expP = data.loadexp(expfile[1])
+    Pc_exp = np.mean(expP)
+    var_Pc_exp = np.var(expP)
+
+    #Calculate Objective Function 
+    Fobj = (Tc_calc-Tc_exp)**2/var_Tc_exp + (Pc_calc-Pc_exp)**2/var_Pc_exp
+
+    print '--------------------------------'
+    print 'Parameters:',L__est,phi__est
+    print 'Critical Temperature:',Tc_calc,Tc_exp
+    print 'Critical Pressure:',Pc_calc,Pc_exp
+    print 'Objective Function:',Fobj,(Tc_calc-Tc_exp)**2/var_Tc_exp,(Pc_calc-Pc_exp)**2/var_Pc_exp
+    print '--------------------------------\n'
+
+    return Fobj
+#=========================================================================================
+
+#Given initial T, using renormalization method, estimate L and phi parameters----------
+def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool):
+
+    #Parameters for PSO
+    nswarm = 10
+    nparameter = 2
+    ndata = 1
+
+    #Create Particles
+    p = np.empty((nswarm,nparameter))
+    for i in range(0,nswarm):
+        p[i][0] = np.random.uniform(1e-10,9e-10)
+        p[i][1] = np.random.uniform(0.01,10)
+    print 'particles'
+    print p
+
+    #Organize Parameters
+    argss = []
+    argss.append(EoS)
+    argss.append(IDs)
+    argss.append(MR)
+    argss.append(T)
+    argss.append(Tfinal)
+    argss.append(stepT)
+    argss.append(nd)
+    argss.append(nx)
+    argss.append(kij)
+    argss.append(nc)
+    argss.append(CR)
+    argss.append(en_auto)
+    argss.append(beta_auto)
+    argss.append(SM)
+    argss.append(n)
+    argss.append(estimate_bool)
+    argss.append(crit_bool)
+    argss.append(expfile)
+
+    #Initialize PSO method
+    PSO.LJPSO(nparameter,ndata,nswarm,objFunc_Tc,argss,p)
+
+    par = 1
+    return par
+#====================================================================================== 
