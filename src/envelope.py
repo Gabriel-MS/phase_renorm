@@ -1226,27 +1226,25 @@ def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n
 #======================================================================================  
 
 #Given initial T, using renormalization method, build P-rho envelope-------------------
-def PV_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+def PV_vec_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
     
     env = []
     Tv = []
     rhov = []
     rhol = []
     Pv = []
-    
-    print 'T:   dens_vap:   dens_liq:   P:'
-    while T<=Tfinal:
-        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+    size = len(T)
+
+    #print 'T:   dens_vap:   dens_liq:   P:'
+    for i in range(0,size):
+        ren = renormalization.renorm(EoS,IDs,MR,T[i],nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         dens = coexistence_dens(ren[2],ren[0])
         Tv.append(T)
         rhov.append(dens[0])
         rhol.append(dens[1])
         Pv.append(dens[2])
-        print T,dens[0],dens[1],dens[2]
-        if abs(dens[0]-dens[1])<1.0:
-	        break
-        T = T + stepT
-        
+        print i,T,dens[1],dens[2]
+
     env.append(Tv)
     env.append(rhov)
     env.append(rhol)
@@ -1416,9 +1414,9 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     Tmax = 0
     Fobjold = 1./3.
     Tmin = 0
-    print 'param:',L__est,phi__est
+    #print 'param:',L__est,phi__est
     
-    print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
+    #print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
         dens = coexistence_dens(ren[2],ren[0])
@@ -1438,7 +1436,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
 
         if flag0==True:
             Tmax = T
-            T = T-step
+            T = T-step/2
             Tmin = T
             flagmax = True
             Fobj = 100
@@ -1699,6 +1697,19 @@ def plot_PV(title,xtitle,ytitle,figname,ydata,x1data,x2data):
 #Define and handle which envelope to calculate-----------------------------------------
 def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_auto,beta_auto,SM,env_type):
     
+    #INDEX START------------------------------
+    #1 - PT Envelope for mixture
+    #2 - PV Envelope for pure
+    #3 - PV Envelope estimate
+    #4 - Critical Point for pure
+    #5 - Derivative properties
+    #6 - Pxy Envelope for binary mixture
+    #7 - Critical point for mixture
+    #8 - Renormalization Parameters estimation
+    #9 - Association Parameters estimation
+    #INDEX END--------------------------------
+
+
     if env_type==1:
         #Calculate PT envelope with continuation method*********************************
         print '\nCalculating PT envelope'
@@ -1807,8 +1818,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         #*******************************************************************************
 
     if env_type==7:
-        #Calculate critical point*******************************************************
-
+        #Calculate critical point for mixture*******************************************************
         if EoS==2 or EoS==4 or EoS==6:
             print '\nCalculating renormalized helmholtz energy surface'
             nd = 40
@@ -1822,8 +1832,9 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         critical.sadus_hicks_young(r_data[4],r_data[3],r_data[1],r_data[9])
         #*******************************************************************************
 
-    if env_type==8:
+    if env_type==8 or env_type==9:
         #Estimate Renormalization Parameters********************************************
+        if env_type==8:
         nd = 400
         nx = 200
         n = 5
@@ -1834,8 +1845,21 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         expname.append('Pc_exp.data')
 
         print '\nEstimating Renormalization Parameters'
-        if env_type==8:
             param = renormalization.Estimate_Parameters(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False)
+        print 'Renormalization Parameters Estimated'
+
+        #Estimate Association Parameters************************************************
+        if env_type==9:
+        nd = 400
+        nx = 200
+        n = 5
+        finalT = 530.0
+        stepT = 0.5
+        expname = []
+        expname.append('sat_exp.data')
+
+        print '\nEstimating Renormalization Parameters'
+            param = estimation.Estimate_Parameters_assoc(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False)
         print 'Renormalization Parameters Estimated'
 
         #print 'Creating pure PV report'

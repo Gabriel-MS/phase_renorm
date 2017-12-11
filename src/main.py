@@ -51,7 +51,7 @@ AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
 env_type = 8
 P = 0.05
-T = 512.00
+T = 500.00
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations

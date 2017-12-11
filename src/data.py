@@ -1,5 +1,6 @@
 import csv
 import menus
+import pandas as pd
 
 #Function to open csv databank and store its values in specific lists---
 def properties():
@@ -283,7 +284,7 @@ def truncate(f, digits):
 #===========================================================================
 
 #Function to open csv file with experimental T-density curve and output data---
-def loadexp2():
+def loadexp3():
     with open('../input/Methanol.csv') as csvfile:
         readCSV = csv.reader(csvfile, delimiter=';')
         next(readCSV, None)  # skip the header
@@ -322,4 +323,38 @@ def loadexp(filename):
             dt = float(row[0])
             expdata.append(dt)
     return expdata
+#=============================================================================
+
+#Function to import dataframe-------------------------------------------------
+def loadexp2(filename):
+
+    lin = ID[0]-1
+
+    #Read values
+    df = pd.read_csv(filename,sep=';',header=None)
+
+    out = []
+    out.append(df[:][0].values.tolist())
+    out.append(df[:][1].values.tolist())
+    out.append(df[:][2].values.tolist())
+
+    return out
+#=============================================================================
+
+#Function to modify custom substance association parameters-------------------
+def modify_assoc(ID,e,b):
+
+    lin = ID[0]-1
+
+    #Read values
+    df = pd.read_csv('properties.csv',sep=';',header=None)
+
+    #Modify association energy and association volume
+    df.set_value(lin,11,e)
+    df.set_value(lin,12,b)
+
+    #Save new values
+    df.to_csv('properties.csv',sep=';',index=False,index_label=False,header=False)
+
+    return df
 #=============================================================================

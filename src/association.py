@@ -256,3 +256,30 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
         
     return X
 #==========================================================================================
+
+#Calculates Fraction of non-bonded sites for pure components-------------------------------
+def frac_nbs_pure(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
+    
+    if nc==1:
+        nc=2
+    
+    
+    #Calculate delta
+    delta = delta_calc(nc,V,CR,en_auto,beta_auto,b,bmix,T,SM)
+    
+    x = np.array(x)
+    X = np.array(X)
+
+    #2B
+    Xa = (-1+(1+8*delta[0][1]/V)**0.5)/(4*delta[0][1]/V)
+    X[0] = Xa
+    X[1] = Xa
+    X[2] = 1
+    X[3] = 1
+    X[4] = Xa
+    X[5] = Xa
+    X[6] = 1
+    X[7] = 1
+
+    return X
+#==========================================================================================

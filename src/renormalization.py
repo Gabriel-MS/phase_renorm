@@ -11,6 +11,7 @@ import time
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 from scipy.interpolate import RectBivariateSpline
 from scipy import stats
+from scipy.linalg import inv
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -106,6 +107,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
                     X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,0,x,0,T,SM)
                 else:
                     X = association.frac_nbs(nc,1/rho[k],CR,en_auto,beta_auto,b,bmix,X,1,x,0,T,SM)
+            #print X,k
+            #raw_input('...')
             f[k] = np.array(helm_rep(EoS,R,T,rho[k],amix,bmix,X,x,nc))   #Helmholtz energy density
             k = k+1
             
@@ -639,8 +642,8 @@ def delta_exponent(env,Tc,Pc,rhoc):
     return delta
 #=========================================================================================
 
-#Calculate Objective function based only on Critical Temperature--------------------------
-def objFunc_Tc(par,argss):
+#Calculate Objective function based on Critical Temperature and Critical Pressure---------
+def objFunc_Tc_Pc(par,argss):
 
     #Parameters
     EoS     = argss[0]
@@ -683,24 +686,35 @@ def objFunc_Tc(par,argss):
     Pc_exp = np.mean(expP)
     var_Pc_exp = np.var(expP)
 
-    #Calculate Objective Function 
-    Fobj = (Tc_calc-Tc_exp)**2/var_Tc_exp + (Pc_calc-Pc_exp)**2/var_Pc_exp
+    #Calculate Objective Function
+    Fobj_T = (Tc_calc-Tc_exp)**2/var_Tc_exp
+    Fobj_P = (Pc_calc-Pc_exp)**2/var_Pc_exp
+    Fobj = Fobj_T + Fobj_P
 
+    """
     print '--------------------------------'
     print 'Parameters:',L__est,phi__est
     print 'Critical Temperature:',Tc_calc,Tc_exp
     print 'Critical Pressure:',Pc_calc,Pc_exp
     print 'Objective Function:',Fobj,(Tc_calc-Tc_exp)**2/var_Tc_exp,(Pc_calc-Pc_exp)**2/var_Pc_exp
     print '--------------------------------\n'
+    """
 
-    return Fobj
+    out = []
+    out.append(Fobj)
+    out.append(Tc_calc)
+    out.append(Pc_calc)
+    out.append(rhoc_calc)
+    out.append(Fobj_T)
+    out.append(Fobj_P)
+    return out
 #=========================================================================================
 
 #Given initial T, using renormalization method, estimate L and phi parameters----------
 def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool):
 
     #Parameters for PSO
-    nswarm = 10
+    nswarm = 5
     nparameter = 2
     ndata = 1
 
@@ -734,8 +748,310 @@ def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     argss.append(expfile)
 
     #Initialize PSO method
-    PSO.LJPSO(nparameter,ndata,nswarm,objFunc_Tc,argss,p)
+    #PSO.LJPSO(nparameter,ndata,nswarm,objFunc_Tc_Pc,argss,p)
 
+    
+    #Initialize Newton method
+    phi = 1.0
+    L = 5.6e-10
+    L_orig = L
+    tol = 1e-5
+    k = 0
+    err = 1.0
+    par = np.empty((2))
+    par[0] = L
+    par[1] = phi
+    Fobj = 1.0
+    Lold = 1.0
+    while err>tol:
+
+        #Calculate objective function
+        F = objFunc_Tc_Pc(par,argss)
+        Fold = Fobj
+        Fobj = F[0]     #Objective Function value
+        argss[3] = F[1]-5 #New temperature estimate is near the last critical temperature
+        Tc = F[1]
+        Pc = F[2]
+        rhoc = F[3]
+
+        #Apply correction to parameter L
+        derF = (Fobj-Fold)/(L-Lold)
+        Lold = L
+        L = L - 0.5*Fobj/derF #damping to help
+        if k==0:
+            L = L_orig-0.1e-10
+        par[0] = L
+        errL = L-Lold
+        err = Fobj
+
+        k = k+1
+        print Tc,Pc,rhoc,L+0.5*Fobj/derF,err
+    
+    """
+    #Initialize Full Newton method
+    phi = 5.0
+    L = 5e-10
+    L_orig = L
+    phi_orig = phi
+    tol = 1e-5
+    k = 0
+    err = 1.0
+    par = np.empty((2))
+    Fv = np.empty((2))
+    dF = np.empty((2,2))
+    invD = np.empty((2,2))
+    D = np.empty((2))
+    par[0] = L
+    par[1] = phi
+    Fobj = 1.0
+    Fobj_T = 1.0
+    Fobj_P = 1.0
+    Lold = 1.0
+    phiold = 1.0
+    while err>tol:
+
+        #Calculate objective function
+        F = objFunc_Tc(par,argss)
+        Fold_T = Fobj_T
+        Fold_P = Fobj_P
+        Fobj = F[0]     #Objective Function value
+        Fobj_T = F[4]     #Objective Function value for critical temperature
+        Fobj_P = F[5]     #Objective Function value for critical pressure
+        argss[3] = F[1]-5 #New temperature estimate is near the last critical temperature
+        Tc = F[1]
+        Pc = F[2]
+        rhoc = F[3]
+
+        #Apply correction to parameter L
+        derF_TL = (Fobj_T-Fold_T)/(L-Lold)
+        derF_Tphi = (Fobj_T-Fold_T)/(phi-phiold)
+        derF_PL = (Fobj_P-Fold_P)/(L-Lold)
+        derF_Pphi = (Fobj_P-Fold_P)/(phi-phiold)
+
+        #print L,Lold,phi,phiold
+        #print Fobj_T,Fobj_P
+        #print derF_TL,derF_Tphi,derF_PL,derF_Pphi
+
+        Lold = L
+        phiold = phi
+        
+
+        Fv[0] = -Fobj_T
+        Fv[1] = -Fobj_P
+
+        dF[0][0] = derF_TL
+        dF[0][1] = derF_Tphi
+        dF[1][0] = derF_PL
+        dF[1][1] = derF_Pphi
+        print '---dF---'
+        print dF
+
+        detD = derF_TL*derF_Pphi-derF_Tphi*derF_PL
+        print '---det---'
+        print detD
+        invD[0][0] = derF_Pphi/detD
+        invD[0][1] = -derF_Tphi/detD
+        invD[1][0] = -derF_PL/detD
+        invD[1][1] = derF_TL/detD
+        D[0] = (invD[0][0]*Fv[0])+(invD[0][1]*Fv[1])
+        D[1] = (invD[1][0]*Fv[0])+(invD[1][1]*Fv[1])
+        print '---D---'
+        print D
+        
+        #D = inv(dF)*Fv
+
+        #L   = L   + D[0]
+        #phi = phi + D[1]
+
+        L   = L   + Fobj_T/derF_TL
+        phi = phi + Fobj_P/derF_Pphi
+
+        if k==0:
+            L = L_orig+0.1e-10
+            phi = phi_orig+0.2
+
+        par[0] = L
+        par[1] = phi
+        errL = L-Lold
+        errphi = phi-phiold
+        err = Fobj
+
+        k = k+1
+        print Tc,Pc,rhoc,Lold,phiold,err
+    """
+    par = 1
+    return par
+#====================================================================================== 
+
+#Given initial T, using renormalization method, estimate L and phi parameters----------
+def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool):
+
+    #Parameters for PSO
+    nswarm = 5
+    nparameter = 2
+    ndata = 1
+
+    #Create Particles
+    p = np.empty((nswarm,nparameter))
+    for i in range(0,nswarm):
+        p[i][0] = np.random.uniform(1e-10,9e-10)
+        p[i][1] = np.random.uniform(0.01,10)
+    print 'particles'
+    print p
+
+    #Organize Parameters
+    argss = []
+    argss.append(EoS)
+    argss.append(IDs)
+    argss.append(MR)
+    argss.append(T)
+    argss.append(Tfinal)
+    argss.append(stepT)
+    argss.append(nd)
+    argss.append(nx)
+    argss.append(kij)
+    argss.append(nc)
+    argss.append(CR)
+    argss.append(en_auto)
+    argss.append(beta_auto)
+    argss.append(SM)
+    argss.append(n)
+    argss.append(estimate_bool)
+    argss.append(crit_bool)
+    argss.append(expfile)
+
+    #Initialize PSO method
+    #PSO.LJPSO(nparameter,ndata,nswarm,objFunc_Tc_Pc,argss,p)
+
+    
+    #Initialize Newton method
+    phi = 1.0
+    L = 5.6e-10
+    L_orig = L
+    tol = 1e-5
+    k = 0
+    err = 1.0
+    par = np.empty((2))
+    par[0] = L
+    par[1] = phi
+    Fobj = 1.0
+    Lold = 1.0
+    while err>tol:
+
+        #Calculate objective function
+        F = objFunc_Tc_Pc(par,argss)
+        Fold = Fobj
+        Fobj = F[0]     #Objective Function value
+        argss[3] = F[1]-5 #New temperature estimate is near the last critical temperature
+        Tc = F[1]
+        Pc = F[2]
+        rhoc = F[3]
+
+        #Apply correction to parameter L
+        derF = (Fobj-Fold)/(L-Lold)
+        Lold = L
+        L = L - 0.5*Fobj/derF #damping to help
+        if k==0:
+            L = L_orig-0.1e-10
+        par[0] = L
+        errL = L-Lold
+        err = Fobj
+
+        k = k+1
+        print Tc,Pc,rhoc,L+0.5*Fobj/derF,err
+    
+    """
+    #Initialize Full Newton method
+    phi = 5.0
+    L = 5e-10
+    L_orig = L
+    phi_orig = phi
+    tol = 1e-5
+    k = 0
+    err = 1.0
+    par = np.empty((2))
+    Fv = np.empty((2))
+    dF = np.empty((2,2))
+    invD = np.empty((2,2))
+    D = np.empty((2))
+    par[0] = L
+    par[1] = phi
+    Fobj = 1.0
+    Fobj_T = 1.0
+    Fobj_P = 1.0
+    Lold = 1.0
+    phiold = 1.0
+    while err>tol:
+
+        #Calculate objective function
+        F = objFunc_Tc(par,argss)
+        Fold_T = Fobj_T
+        Fold_P = Fobj_P
+        Fobj = F[0]     #Objective Function value
+        Fobj_T = F[4]     #Objective Function value for critical temperature
+        Fobj_P = F[5]     #Objective Function value for critical pressure
+        argss[3] = F[1]-5 #New temperature estimate is near the last critical temperature
+        Tc = F[1]
+        Pc = F[2]
+        rhoc = F[3]
+
+        #Apply correction to parameter L
+        derF_TL = (Fobj_T-Fold_T)/(L-Lold)
+        derF_Tphi = (Fobj_T-Fold_T)/(phi-phiold)
+        derF_PL = (Fobj_P-Fold_P)/(L-Lold)
+        derF_Pphi = (Fobj_P-Fold_P)/(phi-phiold)
+
+        #print L,Lold,phi,phiold
+        #print Fobj_T,Fobj_P
+        #print derF_TL,derF_Tphi,derF_PL,derF_Pphi
+
+        Lold = L
+        phiold = phi
+        
+
+        Fv[0] = -Fobj_T
+        Fv[1] = -Fobj_P
+
+        dF[0][0] = derF_TL
+        dF[0][1] = derF_Tphi
+        dF[1][0] = derF_PL
+        dF[1][1] = derF_Pphi
+        print '---dF---'
+        print dF
+
+        detD = derF_TL*derF_Pphi-derF_Tphi*derF_PL
+        print '---det---'
+        print detD
+        invD[0][0] = derF_Pphi/detD
+        invD[0][1] = -derF_Tphi/detD
+        invD[1][0] = -derF_PL/detD
+        invD[1][1] = derF_TL/detD
+        D[0] = (invD[0][0]*Fv[0])+(invD[0][1]*Fv[1])
+        D[1] = (invD[1][0]*Fv[0])+(invD[1][1]*Fv[1])
+        print '---D---'
+        print D
+        
+        #D = inv(dF)*Fv
+
+        #L   = L   + D[0]
+        #phi = phi + D[1]
+
+        L   = L   + Fobj_T/derF_TL
+        phi = phi + Fobj_P/derF_Pphi
+
+        if k==0:
+            L = L_orig+0.1e-10
+            phi = phi_orig+0.2
+
+        par[0] = L
+        par[1] = phi
+        errL = L-Lold
+        errphi = phi-phiold
+        err = Fobj
+
+        k = k+1
+        print Tc,Pc,rhoc,Lold,phiold,err
+    """
     par = 1
     return par
 #====================================================================================== 

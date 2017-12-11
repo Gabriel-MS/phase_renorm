@@ -135,7 +135,7 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
         #Calculate Objective Function for all particles
         for i in range(0,nswarm):
             if flag[i]==False:
-                Fobj[i] = objFunc(p[i],xdata)
+                Fobj[i] = objFunc(p[i],xdata)[0]
                 Fobj[i] = abs(Fobj[i])
             
                 #Update each particle best position
@@ -160,7 +160,12 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
                         best_swarm_pos[j] = p[i][j]
                 
             Fobj_old = Fobj
-            
+        
+        #First particle gets straight to global best
+        for j in range(0,nparam):
+            p[0][j] = best_swarm_pos[j]
+
+
         #Update positions
         for i in range(0,nswarm):
             if flag[i]==False:
