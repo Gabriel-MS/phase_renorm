@@ -371,7 +371,7 @@ def V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM):
     out.append(X)
     return out
 #=============================================================
-
+"""
 #Molar volume calculation-------------------------------------
 def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM,r_data):
 
@@ -392,6 +392,19 @@ def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM,r_data):
             4: V_calc(EoS,P,T,amix,bmix,phase),
             5: V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
         }.get(EoS,'NULL')
+
+    return V
+#=============================================================
+"""
+#Molar volume calculation-------------------------------------
+def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM,r_data):
+
+    if EoS<5:
+        V = V_calc(EoS,P,T,amix,bmix,phase)
+    if EoS==5:
+        V = V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
+    if EoS==6:
+        V = renormalization.volume_renorm(phase,x[0],P,bmix,R,T,r_data)
 
     return V
 #=============================================================

@@ -7,26 +7,26 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 #Standard PSO routine-------------------------------------------------------------------------------
-def PSO(nparam,ndata,nswarm,objFunc,args,p):
+def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
     #nparam  - number of parameters
     #ndata   - number of data points
     #nswarm  - number of particles
     #objFunc - Objective Function
     #args    - Objective Function arguments
-    
+
     #Organize parameters and arguments------------------------------------
-    xdata = args[0]
-    #=====================================================================   
-    
+    xdata = args
+    #=====================================================================
+
     #Initialize PSO parameters--------------------------------------------
     k = 1           #iteration counter
     kmax = 100    #max iterations allowed
     c1 = 0.5        #weight of particle's best position distance
     c2 = 1.0        #weight of swarm's best position distance
     w = 0.5        #weight of particle's last velocity
-    tol = 1e-20     #tolerance
+    tol = 1e-4     #tolerance
     #=====================================================================
-    
+
     #Initialize solutions-------------------------------------------------
     best_swarm_pos    = np.array(p[0])             #Best Swarm position, choosing "randomly the first particle"
     best_swarm_obj    = np.array(objFunc(p[0],xdata))    #Objective Function of Best Swarm position
@@ -34,22 +34,34 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p):
     best_particle_pos = np.empty((nswarm,nparam))          #Initialize Best Particle position
     Fobj              = np.empty((nswarm))          #Initialize objective function
     v                 = np.empty((nswarm,nparam))   #Initial velocities
+    scale = np.ones((nparam))                       #Parameters scale
+    for j in range(0,nparam):
+        scale[j] = numerical.magnitude(p[0][j])
+
     for i in range(0,nswarm):
-        v[i]          = np.random.rand(1,nparam)[0] 
-    for i in range(0,nswarm):
-        best_particle_obj[i] = np.array(objFunc(p[i],xdata)) #Objective Function of Best Particle position
-        best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
+        for j in range(0,nparam):
+            v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j])))/100
+    #print '---best---'
+    #for i in range(0,nswarm):
+    #    best_particle_obj[i] = np.array(objFunc(p[i],xdata))[0] #Objective Function of Best Particle position
+    #    best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
+    #    print i,best_particle_obj[i]
+    #print '----------'
     Fobj_old = best_particle_obj
     #=====================================================================
-    
+
     #MAIN LOOP------------------------------------------------------------
     #Calculate Objective function for all particles
     while (k<kmax) and (best_swarm_obj>tol):
         
         #Calculate Objective Function for all particles
         for i in range(0,nswarm):
-            Fobj[i] = objFunc(p[i],xdata)
-            
+            #print 'part i',p[i]
+            Fobj[i] = objFunc(p[i],xdata)[0]
+            if k==1:
+                best_particle_obj[i] = Fobj[i] #Objective Function of Best Particle position
+                best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
+            #print 'i',i,Fobj[i]
             #Update each particle best position
             if Fobj[i]<=Fobj_old[i]:
                 best_particle_obj[i] = Fobj[i]
@@ -70,9 +82,17 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p):
                 v[i][j] = w*v[i][j] + c1*np.random.rand()*(best_particle_pos[i][j]-p[i][j]) + c2*np.random.rand()*(best_swarm_pos[j]-p[i][j])
                 p[i][j] = p[i][j] + v[i][j]
         
+        #Check boundaries
+        for i in range(0,nswarm):
+            for j in range(0,nparam):
+                if p[i][j]>bmax[j]:
+                    p[i][j]=bmax[j]
+                if p[i][j]<bmin[j]:
+                    p[i][j]=bmin[j]
+        
         #Update iteration counter
         k = k+1
-        print 'k',k,best_swarm_pos,best_swarm_obj
+        print 'k',k-1,best_swarm_pos,best_swarm_obj
     #=====================================================================
     
     for i in range(0,nswarm):
@@ -119,7 +139,8 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
     a                 = np.zeros((nswarm,nparam))   #Initial accelerations
     flag              = np.empty((nswarm))
     for i in range(0,nswarm):
-        v[i]          = np.random.rand(1,nparam)[0] 
+        for j in range(0,nparam):
+            v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j]))) 
         flag[i]       = False
     for i in range(0,nswarm):
         best_particle_obj[i] = abs(np.array(objFunc(p[i],xdata))) #Objective Function of Best Particle position
@@ -162,8 +183,8 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             Fobj_old = Fobj
         
         #First particle gets straight to global best
-        for j in range(0,nparam):
-            p[0][j] = best_swarm_pos[j]
+        #for j in range(0,nparam):
+        #    p[0][j] = best_swarm_pos[j]
 
 
         #Update positions
@@ -171,11 +192,9 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             if flag[i]==False:
                 for j in range(0,nparam):
                     v[i][j] = w*v[i][j] + c1*np.random.rand()*(best_particle_pos[i][j]-p[i][j]) + c2*np.random.rand()*(best_swarm_pos[j]-p[i][j])
-                    #p[i][j] = p[i][j] + v[i][j]*(1*(10**(scale[j])))/10
-                    p[i][j] = p[i][j] - v[i][j]*(1*(10**(scale[j])))/10
-                
-        #Forces and acceleration calculation
-        #Check if distance<Cut-off
+                    p[i][j] = p[i][j] + v[i][j]
+
+        #Forces and acceleration calculation if distance < cut-off
         F = np.zeros((nswarm,nparam))
         for i in range(0,nswarm):
             for l in range(i+1,nswarm):
@@ -192,6 +211,7 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
                             Fij = np.random.rand()*3.14/rc*math.cos(3.14*rij/rc)*(p[i][j]-p[l][j])
                             F[i][j] = F[i][j] + Fij
                             F[l][j] = F[l][j] - Fij
+
         #Update velocities according to forces
         #print '=========='
         for i in range(0,nswarm):
@@ -203,7 +223,7 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
 
         #Plot actual status
         h = k
-        if h%5==0:
+        if h%1==0:
             xa = np.empty((nswarm))
             ya = np.empty((nswarm))
             xc = np.empty((flagcount))
@@ -211,12 +231,13 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             qq = 0
             ww = 0
             for ww in range(0,nswarm):
-                xa[ww] = best_particle_pos[ww][0]
-                ya[ww] = best_particle_pos[ww][1]
                 if flag[ww]==True:
                     xc[qq] = best_particle_pos[ww][0]
                     yc[qq] = best_particle_pos[ww][1]
                     qq = qq+1
+                else:
+                    xa[ww] = best_particle_pos[ww][0]
+                    ya[ww] = best_particle_pos[ww][1]
             fig = plt.figure()
             plt.plot(xa,ya,'r.')
             plt.plot(xc,yc,'g^')

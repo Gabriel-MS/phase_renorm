@@ -146,7 +146,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             #Update Helmholtz Energy Density
             df = np.array(df)
             f = f + df
-            #print 'i=',i,K/bmix/bmix*amix,f[60]/bmix/bmix*amix,df[60]/bmix/bmix*amix,fl[60]/bmix/bmix*amix,fs[60]/bmix/bmix*amix
+            print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix
             i = i+1
 
         #Dimensionalization
@@ -496,9 +496,11 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
 
     #Considering ideal gas energy contribution
     f = {
-        2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #SRK+RG
+        2: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix),
+        #2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #SRK+RG
         4: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #PR+RG
-        6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
+        #6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
+        6: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
     }.get(EoS,'NULL')
     
     #if abs(rho*bmix-0.15)<1e-4:
@@ -511,9 +513,9 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
 def helm_long(EoS,rho,f):
     
     f0a = {
-        2: -rho*rho, #SRK+RG
-        4: -rho*rho, #PR+RG
-        6: -rho*rho #CPA+RG
+        2: -0.5*rho*rho, #SRK+RG
+        4: -0.5*rho*rho, #PR+RG
+        6: -0.5*rho*rho #CPA+RG
     }.get(EoS,'NULL')
     
     flong = f - f0a
@@ -530,8 +532,8 @@ def helm_short(EoS,rho,f,phi,i):
     }.get(EoS,'NULL')
     
     fshort = {
-        2: f - f0a*phi/(2**i),      #SRK+RG
-        4: f - f0a*phi/(2**i),      #PR+RG
+        2: f - f0a*phi/(2**(2*i)),      #SRK+RG
+        4: f - f0a*phi/(2**(2*i)),      #PR+RG
         6: f - f0a*phi/(2**(2*i+1)) #CPA+RG
     }.get(EoS,'NULL')
     

@@ -19,8 +19,8 @@ print ('    ============================================\n\n\n')
 #user_options = menus.user()
 user_options = []
 user_options.append(1) #nc
-user_options.append([7,7]) #IDs
-user_options.append(6) #EoS
+user_options.append([12,12]) #IDs
+user_options.append(5) #EoS
 user_options.append(1) #MR
 user_options.append([0.3,0.7]) #z
 user_options.append([3,3]) #CPA AM
@@ -49,7 +49,7 @@ MR = user_options[3] #Define Mixing Rule
 z = user_options[4] #Define Feed Composition
 AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
-env_type = 8
+env_type = 10
 P = 0.05
 T = 500.00
 kij = np.zeros((nc,nc))

@@ -13,6 +13,7 @@ import critical
 import derivativeprop
 import PSO
 import time
+import estimation
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -760,6 +761,135 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     return out
 #======================================================================================
 
+#Given vector of T, iterate over T to calculate TV envelope--------------------------------------
+def TV_envelope(Tvec,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
+
+    Pvec = []
+    xvec = []
+    yvec = []
+    Vlvec = []
+    Vvvec = []
+    
+    #Definitions--------------------------------------------------
+    #Main iteration conditions
+    x = np.array([0.0001,0.9999]) #x array
+    xf = 1.0                    #Main stop condition
+    stepx = 1e-3                #Main step
+    it = 0                      #Iteration counter
+    ity = 0                     #Iteration over y loop counter
+    pt = 0                      #Point counter
+    itmax = 100                 #Max number of iterations
+    
+    #tolerances
+    tolK = 1e-3             #iteration over Kx
+    toly = 1e-4             #iteration over y
+    
+    #CPA auto-association configurations
+    auto = []
+    auto = association.CPA_auto(AR,nc,IDs)
+    en_auto = auto[0]
+    beta_auto = auto[1]
+    #=============================================================
+
+    #Main iteration start, range T------------------------------------------
+    for i in range(0,len(Tvec)):
+        x = np.array([0.0001,0.9999]) #x array
+        T = Tvec[i]
+
+        #Initial guess------------------------------------------------
+        #Saturation pressure
+        Psat = np.array(correlations.Psat_antoine(IDs,T))
+
+        #Initial guess
+        if pt==0:
+            P = np.dot(Psat,x)
+            y = Psat*x/P
+            Vv = R*T/P #Not going to be used, just starting
+            Vl = 0.99  #Not going to be used, just starting
+        #print Psat,x,P,y
+        #=============================================================
+
+        #Iteration Kx start--------------------------------------------------
+        errK = tolK+1 #Force enter iteration
+        while errK>tolK and it<itmax:
+            func_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,Vl,en_auto,beta_auto,CR,SM,it,pt,r_data) #Liquid
+            lnfugcoef_l = func_l[0]
+            Vl = func_l[1]
+            func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt,r_data) #Vapor
+            lnfugcoef_v = func_v[0]
+            Vv = func_v[1]
+            K = np.exp(lnfugcoef_l-lnfugcoef_v)
+            Kx = K*x
+            sumKx = np.sum(Kx)
+            
+            #print 'phil = ',np.exp(lnfugcoef_l),Vl
+            #print 'phiv = ',np.exp(lnfugcoef_v),Vv
+            #print 'sumKx = ',sumKx,K,Kx
+            
+            #Iteration y start-----------------------------------------------
+            erry = toly+1
+            ity = 0
+            while (erry>toly and ity<200) or ity<2:
+                y = Kx/sumKx
+                sumKxold = sumKx
+                func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt,r_data) #Vapor
+                lnfugcoef_v = func_v[0]
+                Vv = func_v[1]
+                K = np.exp(lnfugcoef_l-lnfugcoef_v)
+                Kx = K*x
+                sumKx = np.sum(Kx)
+                erry = abs(sumKx-sumKxold)/sumKx
+                ity = ity+1
+                #print 'erry',erry,y,K
+                #print 'y inside erry',y
+            #Iteration y end=================================================
+            
+            errK = abs(sumKx-1)/sumKx
+            y = Kx/sumKx
+            P = P*sumKx
+            it = it+1
+            #print 'y',y
+            #print 'P',P,sumKx
+            #print 'it',it
+            #print 'errK---------------',errK,tolK,P,y
+            #raw_input('...')
+        #Iteration Kx end====================================================
+        
+        #Save P, x1 and y1
+        Pvec.append(P)
+        xvec.append(x[0])
+        yvec.append(y[0])
+        Vlvec.append(Vl)
+        Vvvec.append(Vv)
+        
+        #Update main condition
+        #print'======='
+        #print 'x',x
+        #print 'P',P
+        #print 'it',it
+        #print 'y',y
+        #input('End a point--------------')
+        #print x[0],y[0],P,it
+        x[0] = x[0]+stepx
+        if stepx==5E-3 and pt==0:
+            x[0] = 5E-3
+        x[1] = 1-x[0]
+        pt = pt+1       #add counter pt
+        it = 0          #zero counter it
+        
+        #print 'pt',pt,T,P,1/Vl
+    #Main iteration end, range T============================================
+    
+    out = []
+    out.append(Pvec)
+    out.append(xvec)
+    out.append(yvec)
+    out.append(Vlvec)
+    out.append(Vvvec)
+    
+    return out
+#======================================================================================
+
 #Plot Pxy envelope---------------------------------------------------------------------
 def plot_Pxy(title,xtitle,ytitle,figname,boxtext,ydata,x1data,x2data):
     
@@ -884,7 +1014,10 @@ def coexistence_dens(rho1,f1):
 
     #for i in range(0,n):
     #    print i,rho[i],P[i],dPdrho[i]
-    
+    #plt.plot(rho,P)
+    #plt.ylim(0,5)
+    #plt.show()
+
     #Find max and min pressure of isotherm inside binodal curve
     max1 = int(numerical.bin_max(dPdrho))
     if max1==n:
@@ -986,7 +1119,7 @@ def coexistence_dens(rho1,f1):
 
     #plt.plot(rho,P,'r-')
     #plt.plot(rho,Pp,'g-.')
-    #plt.ylim(7,8)
+    #plt.ylim(0,8)
     #plt.show()
 
     #Solve newton-raphson system
@@ -1243,7 +1376,7 @@ def PV_vec_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,
         rhov.append(dens[0])
         rhol.append(dens[1])
         Pv.append(dens[2])
-        print i,T,dens[1],dens[2]
+        #print i,T[i],dens[1],dens[2]
 
     env.append(Tv)
     env.append(rhov)
@@ -1763,7 +1896,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         #Calculate pure PV envelope*****************************************************
         nd = 400
         nx = 200
-        n = 5
+        n = 8
         finalT = 530.0
         stepT = 0.5
         print '\nCalculating PV envelope'
@@ -1794,7 +1927,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             print '\nCalculating renormalized helmholtz energy surface'
             nd = 400
             nx = 200
-            n = 5
+            n = 8
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
@@ -1832,35 +1965,49 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         critical.sadus_hicks_young(r_data[4],r_data[3],r_data[1],r_data[9])
         #*******************************************************************************
 
-    if env_type==8 or env_type==9:
+    if env_type==8 or env_type==9 or env_type==10:
         #Estimate Renormalization Parameters********************************************
         if env_type==8:
-        nd = 400
-        nx = 200
-        n = 5
-        finalT = 530.0
-        stepT = 0.5
-        expname = []
-        expname.append('Tc_exp.data')
-        expname.append('Pc_exp.data')
+            nd = 400
+            nx = 200
+            n = 5
+            finalT = 530.0
+            stepT = 0.5
+            expname = []
+            expname.append('Tc_exp.data')
+            expname.append('Pc_exp.data')
 
-        print '\nEstimating Renormalization Parameters'
+            print '\nEstimating Renormalization Parameters'
             param = renormalization.Estimate_Parameters(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False)
-        print 'Renormalization Parameters Estimated'
+            print 'Renormalization Parameters Estimated'
 
         #Estimate Association Parameters************************************************
         if env_type==9:
-        nd = 400
-        nx = 200
-        n = 5
-        finalT = 530.0
-        stepT = 0.5
-        expname = []
-        expname.append('sat_exp.data')
+            nd = 200
+            nx = 200
+            n = 5
+            finalT = 530.0
+            stepT = 0.5
+            expname = []
+            expname.append('sat_exp.data')
 
-        print '\nEstimating Renormalization Parameters'
-            param = estimation.Estimate_Parameters_assoc(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False)
-        print 'Renormalization Parameters Estimated'
+            print '\nEstimating CPA Association Parameters'
+            param = estimation.Estimate_Parameters_assoc(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False,AR)
+            print 'CPA Association Parameters Estimated'
+
+        #Estimate CPA Parameters************************************************
+        if env_type==10:
+            nd = 200
+            nx = 200
+            n = 5
+            finalT = 530.0
+            stepT = 0.5
+            expname = []
+            expname.append('sat_exp.data')
+
+            print '\nEstimating CPA Parameters'
+            param = estimation.Estimate_Parameters_CPA(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False,AR)
+            print 'CPA Parameters Estimated'
 
         #print 'Creating pure PV report'
         #reportname = str('PV_%s.csv' %('_'.join(print_options[1])))
