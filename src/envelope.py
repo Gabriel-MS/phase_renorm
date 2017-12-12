@@ -14,6 +14,7 @@ import derivativeprop
 import PSO
 import time
 import estimation
+import pandas as pd
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -825,7 +826,7 @@ def TV_envelope(Tvec,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
             #print 'phil = ',np.exp(lnfugcoef_l),Vl
             #print 'phiv = ',np.exp(lnfugcoef_v),Vv
             #print 'sumKx = ',sumKx,K,Kx
-            
+            """
             #Iteration y start-----------------------------------------------
             erry = toly+1
             ity = 0
@@ -840,10 +841,10 @@ def TV_envelope(Tvec,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
                 sumKx = np.sum(Kx)
                 erry = abs(sumKx-sumKxold)/sumKx
                 ity = ity+1
-                #print 'erry',erry,y,K
+                print 'erry',erry,y,K
                 #print 'y inside erry',y
             #Iteration y end=================================================
-            
+            """
             errK = abs(sumKx-1)/sumKx
             y = Kx/sumKx
             P = P*sumKx
@@ -1827,6 +1828,16 @@ def plot_PV(title,xtitle,ytitle,figname,ydata,x1data,x2data):
     fig.savefig(figsavedir, dpi=1000)
 #======================================================================================
 
+#Report estimation history-------------------------------------------------------------
+def report_param(data,filename):
+    #df = pd.DataFrame(data)
+    #df.to_csv(filename,index=False,header=False,index_label=False,sep=';')
+    df_a = pd.DataFrame(data)
+    df = pd.read_csv(filename,sep=';')
+    with open(filename, 'a') as f:
+        df_a.to_csv(f,index=False,header=False,index_label=False,sep=';')
+#======================================================================================
+
 #Define and handle which envelope to calculate-----------------------------------------
 def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_auto,beta_auto,SM,env_type):
     
@@ -1840,8 +1851,8 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
     #7 - Critical point for mixture
     #8 - Renormalization Parameters estimation
     #9 - Association Parameters estimation
+    #10 - CPA Parameters estimation
     #INDEX END--------------------------------
-
 
     if env_type==1:
         #Calculate PT envelope with continuation method*********************************
@@ -2009,16 +2020,10 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             param = estimation.Estimate_Parameters_CPA(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False,AR)
             print 'CPA Parameters Estimated'
 
-        #print 'Creating pure PV report'
-        #reportname = str('PV_%s.csv' %('_'.join(print_options[1])))
-        #report_PV(env_PV,print_options,reportname,print_options)
-        #print ('Report %s saved successfully' %reportname)
-
-        #print 'Starting to plot PV envelope'
-        #title = str('PV envelope\n%s' %(' + '.join(print_options[1])))
-        #figname = str('PV_%s.png' %('_'.join(print_options[1])))
-        #plot_PV(title,'Density (mol/m3)','T (K)',figname,env_PV[0],env_PV[1],env_PV[2])
-        #print ('Figure %s saved successfully' %figname)
-        #*******************************************************************************
+            print 'Creating estimation report'
+            reportname = str('../output/OBJ_CPA_%s.csv' %('_'.join(print_options[1])))
+            report_param(param[2],reportname,print_options)
+            reportname = str('../output/param_CPA_%s.csv' %('_'.join(print_options[1])))
+            report_param(param[1],reportname,print_options)
+            print ('Estimation reports saved successfully')
 #======================================================================================
-

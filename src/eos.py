@@ -64,15 +64,10 @@ def ac_calc(IDs,EoS,T):
     param = parameters(EoS)
     OMEGAa = param[2]
     
-    #Calculate ac
-    ac = {
-        1: OMEGAa*R*R*Tc*Tc/Pc, #SRK
-        2: OMEGAa*R*R*Tc*Tc/Pc, #SRK+RG
-        3: OMEGAa*R*R*Tc*Tc/Pc, #PR
-        4: OMEGAa*R*R*Tc*Tc/Pc, #PR+RG
-        5: np.array(data.a0(IDs)), #CPA
-        6: np.array(data.a0(IDs))  #CPA+RG
-    }.get(EoS,'NULL')
+    if EoS<=4: #SRK, SRK+RG, PR, PR+RG
+        ac = OMEGAa*R*R*Tc*Tc/Pc
+    else: #CPA, CPA+RG
+        ac = np.array(data.a0(IDs))
     
     return ac
 #=============================================================
@@ -84,14 +79,7 @@ def a_calc(IDs,EoS,T):
     alfa = np.array(alfa_calc(IDs,EoS,T))
     
     #Calculate a
-    a = {
-        1: ac*alfa, #SRK
-        2: ac*alfa, #SRK+RG
-        3: ac*alfa, #PR
-        4: ac*alfa, #PR+RG
-        5: ac*alfa, #CPA
-        6: ac*alfa #CPA+RG
-    }.get(EoS,'NULL')
+    a = ac*alfa
     
     return a
 #=============================================================
@@ -129,14 +117,10 @@ def b_calc(IDs,EoS):
     OMEGAb = param[3]
     
     #Calculate b
-    b = {
-        1: OMEGAb*R*Tc/Pc,#SRK
-        2: OMEGAb*R*Tc/Pc, #SRK+RG
-        3: OMEGAb*R*Tc/Pc, #PR
-        4: OMEGAb*R*Tc/Pc, #PR+RG
-        5: np.array(data.bCPA(IDs)), #CPA
-        6: np.array(data.bCPA(IDs))  #CPA+RG
-    }.get(EoS,'NULL')
+    if EoS<=4: #SRK, SRK+RG, PR, PR+RG
+        b = OMEGAb*R*Tc/Pc
+    else: #CPA, CPA+RG
+        b = np.array(data.bCPA(IDs))
     
     return b
 #=============================================================
@@ -148,25 +132,18 @@ def alfa_calc(IDs,EoS,T):
     Tr = T/Tc
     
     #Calculate kapa
-    if omega[0]<0.2:
-        kapa = {
-            1: 0.48508+1.55171*omega-0.15613*omega*omega, #SRK
-            2: 0.48508+1.55171*omega-0.15613*omega*omega, #SRK+RG
-            3: 0.37640+1.54230*omega-0.26990*omega*omega, #PR
-            4: 0.37640+1.54230*omega-0.26990*omega*omega, #PR+RG
-            5: np.array(data.c1(IDs)), #CPA
-            6: np.array(data.c1(IDs))  #CPA+RG
-        }.get(EoS,'NULL')
-    
-    else:
-        kapa = {
-            1: 0.48508+1.55171*omega-0.15613*omega*omega, #SRK
-            2: 0.48508+1.55171*omega-0.15613*omega*omega, #SRK+RG
-            3: 0.3796+(1.4850+(-0.1644+0.01667*omega)*omega)*omega, #PR
-            4: 0.3796+(1.4850+(-0.1644+0.01667*omega)*omega)*omega, #PR+RG
-            5: np.array(data.c1(IDs)), #CPA
-            6: np.array(data.c1(IDs))  #CPA+RG
-        }.get(EoS,'NULL')
+    if EoS==1 or EoS==2: #SRK, SRK+RG
+        if omega[0]<0.2:
+            kapa = 0.48508+1.55171*omega-0.15613*omega*omega
+        else:
+            kapa = 0.48508+1.55171*omega-0.15613*omega*omega
+    elif EoS==3 or EoS==4: #PR, PR+RG
+        if omega[0]<0.2:
+            kapa = 0.37640+1.54230*omega-0.26990*omega*omega
+        else:
+            kapa = 0.3796+(1.4850+(-0.1644+0.01667*omega)*omega)*omega
+    else: #CPA, CPA+RG
+        kapa = np.array(data.c1(IDs))
         
     alfa = (1.0+kapa*(1.0-(Tr**0.5)))**2
     
@@ -548,7 +525,7 @@ def lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase):
 #=============================================================
 
 #CPA, ln fugacity of component in a mixture calculation-------
-def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X):
+def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X,a,b,amix,bmix):
     
     x = np.array(x)
     nc = np.shape(x)[0]
@@ -569,12 +546,6 @@ def lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X):
                 one4c[i][j] = 1
             else:
                 one4c[i][j] = 0
-    
-    a = a_calc(IDs,EoS,T)
-    b = b_calc(IDs,EoS)
-    
-    amix = amix_calc(MR,a,x,kij)
-    bmix = bmix_calc(MR,b,x)
     
     bi = np.zeros((nc,nc))
     bij = np.zeros((nc,nc))
@@ -643,7 +614,8 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
         b = b_calc(IDs,EoS)
         amix = amix_calc(MR,a,x,kij)
         bmix = bmix_calc(MR,b,x)
-        if it<1 or it>=1:
+        #if it<1 or it>=1:
+        if it<2:
             if phase==1:
                 V = bmix+(R*T/P)
             else:
@@ -667,7 +639,7 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
         lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
         out.append(lnfugcoef)
     elif EoS==5:
-        lnfugcoef = lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X)
+        lnfugcoef = lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X,a,b,amix,bmix)
         out.append(lnfugcoef)
         out.append(V)
     elif EoS==6:

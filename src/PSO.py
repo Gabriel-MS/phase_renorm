@@ -1,6 +1,8 @@
 import numpy as np
 import math
 import numerical
+import envelope
+import time
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -34,6 +36,8 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
     best_particle_pos = np.empty((nswarm,nparam))          #Initialize Best Particle position
     Fobj              = np.empty((nswarm))          #Initialize objective function
     v                 = np.empty((nswarm,nparam))   #Initial velocities
+    positions    = []                          #Vector of ALL global positions
+    Fobjs        = []                          #Vector of ALL objective functions
     scale = np.ones((nparam))                       #Parameters scale
     for j in range(0,nparam):
         scale[j] = numerical.magnitude(p[0][j])
@@ -41,12 +45,14 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
     for i in range(0,nswarm):
         for j in range(0,nparam):
             v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j])))/100
+            
     #print '---best---'
     #for i in range(0,nswarm):
     #    best_particle_obj[i] = np.array(objFunc(p[i],xdata))[0] #Objective Function of Best Particle position
     #    best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
     #    print i,best_particle_obj[i]
     #print '----------'
+    
     Fobj_old = best_particle_obj
     #=====================================================================
 
@@ -58,10 +64,13 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
         for i in range(0,nswarm):
             #print 'part i',p[i]
             Fobj[i] = objFunc(p[i],xdata)[0]
+            positions.append(p[i]) #Save each position
+            Fobjs.append(Fobj[i])     #Save each respective objective function value
             if k==1:
                 best_particle_obj[i] = Fobj[i] #Objective Function of Best Particle position
                 best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
-            #print 'i',i,Fobj[i]
+            print 'i',i,Fobj[i]
+            
             #Update each particle best position
             if Fobj[i]<=Fobj_old[i]:
                 best_particle_obj[i] = Fobj[i]
@@ -89,6 +98,12 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
                     p[i][j]=bmax[j]
                 if p[i][j]<bmin[j]:
                     p[i][j]=bmin[j]
+                    
+        #Save solutions to file
+        envelope.report_param(Fobjs,'../output/PSO_Fobjs.csv')
+        envelope.report_param(positions,'../output/PSO_parameters.csv')
+        Fobjs[:] = []
+        positions[:] = []
         
         #Update iteration counter
         k = k+1
@@ -97,7 +112,12 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
     
     for i in range(0,nswarm):
         print p[i],Fobj[i]
-    return best_swarm_pos  
+        
+    out_PSO = []
+    out_PSO.append(best_swarm_pos)
+    out_PSO.append(positions)
+    out_PSO.append(Fobjs)
+    return out_PSO
 #===================================================================================================
 
 #Lennard-Jones PSO routine-------------------------------------------------------------------------------
@@ -181,11 +201,6 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
                         best_swarm_pos[j] = p[i][j]
                 
             Fobj_old = Fobj
-        
-        #First particle gets straight to global best
-        #for j in range(0,nparam):
-        #    p[0][j] = best_swarm_pos[j]
-
 
         #Update positions
         for i in range(0,nswarm):
@@ -218,8 +233,7 @@ def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
             if flag[i]==False:
                 for j in range(0,nparam):
                     a[i][j] = F[i][j]/m[i]
-                #    p[i][j] = p[i][j] + a[i][j]*(1*(10**(scale[j])))   #Should we add it or subtract it???
-                #print a[i][j],i,j
+                    p[i][j] = p[i][j] + a[i][j]*(1*(10**(scale[j])))/10
 
         #Plot actual status
         h = k

@@ -335,6 +335,8 @@ def loadexp2(filename):
     out.append(df[:][0].values.tolist())
     out.append(df[:][1].values.tolist())
     out.append(df[:][2].values.tolist())
+    out.append(df[:][3].values.tolist())
+    out.append(df[:][4].values.tolist())
 
     return out
 #=============================================================================

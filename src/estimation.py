@@ -40,7 +40,9 @@ def objFunc_dens_Psat(par,argss):
     #Recover Experimental data for liquid saturated density
     T_exp    = data.loadexp2(expfile[0])[0] #Temperatures
     Psat_exp = data.loadexp2(expfile[0])[1] #Liquid Saturated Density
-    dens_exp = data.loadexp2(expfile[0])[2] #Saturated Vapor Pressure
+    Psat_var = data.loadexp2(expfile[0])[2] #Liquid Saturated Density
+    dens_exp = data.loadexp2(expfile[0])[3] #Saturated Vapor Pressure
+    dens_var = data.loadexp2(expfile[0])[4] #Saturated Vapor Pressure
 
     #Calculate Saturated Vapor Pressure and Liquid Saturated Density for given parameters
     r_data = []
@@ -57,8 +59,8 @@ def objFunc_dens_Psat(par,argss):
     dens_exp = np.array(dens_exp)
     Psat_exp = np.array(Psat_exp)
 
-    Fobj_dens = np.sum(((dens_calc-dens_exp)/dens_exp)**2)/len(dens_exp)
-    Fobj_P    = np.sum(((Psat_calc-Psat_exp)/Psat_exp)**2)/len(Psat_exp)
+    Fobj_dens = np.sum((dens_calc-dens_exp)**2/dens_var)
+    Fobj_P    = np.sum((Psat_calc-Psat_exp)**2/Psat_var)
     Fobj      = Fobj_dens + Fobj_P
 
     """
@@ -116,7 +118,10 @@ def objFunc_dens_Psat_full(par,argss):
     #Recover Experimental data for liquid saturated density
     T_exp    = data.loadexp2(expfile[0])[0] #Temperatures
     Psat_exp = data.loadexp2(expfile[0])[1] #Liquid Saturated Density
-    dens_exp = data.loadexp2(expfile[0])[2] #Saturated Vapor Pressure
+    Psat_var = data.loadexp2(expfile[0])[2] #Liquid Saturated Density
+    dens_exp = data.loadexp2(expfile[0])[3] #Saturated Vapor Pressure
+    dens_var = data.loadexp2(expfile[0])[4] #Saturated Vapor Pressure
+    
 
     #Calculate Saturated Vapor Pressure and Liquid Saturated Density for given parameters
     r_data = []
@@ -133,8 +138,8 @@ def objFunc_dens_Psat_full(par,argss):
     dens_exp = np.array(dens_exp)
     Psat_exp = np.array(Psat_exp)
 
-    Fobj_dens = np.sum(((dens_calc-dens_exp)/dens_exp)**2)/len(dens_exp)
-    Fobj_P    = np.sum(((Psat_calc-Psat_exp)/Psat_exp)**2)/len(Psat_exp)
+    Fobj_dens = np.sum((dens_calc-dens_exp)**2/dens_var)
+    Fobj_P    = np.sum((Psat_calc-Psat_exp)**2/Psat_var)
     Fobj      = Fobj_dens + Fobj_P
 
     """
@@ -213,11 +218,12 @@ def Estimate_Parameters_assoc(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,
 def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool,AR):
 
     #Parameters for PSO
-    nswarm = 10
+    nswarm = 15
     nparameter = 5
     ndata = 1
 
     #Create boundaries
+    """
     bmax = np.empty((5))
     bmin = np.empty((5))
     bmin[0] = 3.9e-7
@@ -230,6 +236,19 @@ def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     bmax[3] = 0.03
     bmin[4] = 0.01
     bmax[4] = 0.02
+    """
+    bmax = np.empty((5))
+    bmin = np.empty((5))
+    bmin[0] = 3.85e-7
+    bmax[0] = 4.15e-7
+    bmin[1] = 2.85e-5
+    bmax[1] = 3.35e-5
+    bmin[2] = 0.3
+    bmax[2] = 0.5
+    bmin[3] = 0.015
+    bmax[3] = 0.035
+    bmin[4] = 0.01
+    bmax[4] = 0.03
 
     #Create Particles
     p = np.empty((nswarm,nparameter))
@@ -263,9 +282,17 @@ def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
 
     #Initialize PSO method
     best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_full,argss,p,bmin,bmax)
+    best_param = best[0]
+    param_list = best[1]
+    param_Fobj = best[2]
 
     #Modify parameters in properties data bank, using best found solution
-    data.modify_CPA(IDs,best)
+    data.modify_CPA(IDs,best[0])
+    
+    print param_list
+    raw_input('...paramlist...')
+    print param_Fobj
+    raw_input('...Fobj...')
 
-    return par
+    return best
 #====================================================================================== 
