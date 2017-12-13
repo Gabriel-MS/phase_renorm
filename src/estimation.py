@@ -141,6 +141,7 @@ def objFunc_dens_Psat_full(par,argss):
     Fobj_dens = np.sum((dens_calc-dens_exp)**2/dens_var)
     Fobj_P    = np.sum((Psat_calc-Psat_exp)**2/Psat_var)
     Fobj      = Fobj_dens + Fobj_P
+    Fobj      = Fobj-5.75676321421064
 
     """
     print '--------------------------------'
@@ -218,7 +219,7 @@ def Estimate_Parameters_assoc(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,
 def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool,AR):
 
     #Parameters for PSO
-    nswarm = 15
+    nswarm = 20
     nparameter = 5
     ndata = 1
 
@@ -281,10 +282,16 @@ def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     argss.append(AR)
 
     #Initialize PSO method
-    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_full,argss,p,bmin,bmax)
-    best_param = best[0]
-    param_list = best[1]
-    param_Fobj = best[2]
+    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_full,argss,p,bmin,bmax)
+    #best_param = best[0]
+    #param_list = best[1]
+    #param_Fobj = best[2]
+
+    #Initialize MDPSO method
+    best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_full,argss,p)
+    best_param = best[2]
+    param_list = best[3]
+    param_Fobj = best[4]
 
     #Modify parameters in properties data bank, using best found solution
     data.modify_CPA(IDs,best[0])
