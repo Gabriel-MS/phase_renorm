@@ -1,5 +1,7 @@
 import numpy as np
 import menus
+import correlations
+import data
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -8,7 +10,7 @@ import matplotlib.pyplot as plt
 R = 8.314462175e-6 #m3.MPa/K/mol
 
 #Function to calculate derivative properties of pure compounds after renormalization--------------- 
-def calc_isothermal_dev_prop_pure(T,f,P,rho,h):
+def calc_isothermal_dev_prop_pure(T,f,P,rho,h,IDs):
     
     f0 = np.array(menus.flatten(f[0]))
     f1 = np.array(menus.flatten(f[1]))
@@ -112,8 +114,12 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h):
     #Cp = Cv - T1[0]*(dPdT[0]**2)/dPdV-R
 
     #Speed of Sound
-    Mw = 0.03204
-    w = (Cp/Cv*dPdrho/Mw*1e6)**(0.5)
+    Mw = data.mass(IDs)[0]
+    Cp_ig = correlations.ideal_cp(IDs,T1[0])
+    Cp1 = Cp*R + Cp_ig
+    Cv_ig = Cp_ig - R
+    Cv1 = Cv*R + Cv_ig
+    w = (Cp1/Cv1*dPdrho/Mw*1e6)**(0.5)
     #w = (-(Vv**2)*Cp/Cv*dPdV/Mw)**(0.5)
     
     deriv_data = []
@@ -131,6 +137,8 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h):
     deriv_data.append(uJT)
     deriv_data.append(Cp)
     deriv_data.append(w)
+    deriv_data.append(Cp1)
+    deriv_data.append(Cv1)
     
     return deriv_data
 #==================================================================================================
@@ -200,9 +208,9 @@ def plot_isothermal_dev_prop_pure(P,rho,d2AdT2,dAdT,Cv,dPdrho,inv_kT,kT,lnkT,dPd
 #==================================================================================================
 
 #Function to report calculated derivative properties of pure compounds after renormalization------- 
-def report_isothermal_dev_prop_pure(title,P,rho,d2AdT2,dAdT,Cv,dPdrho,inv_kT,kT,lnkT,dPdT,alfa,uJT,Cp,w,print_options):
+def report_isothermal_dev_prop_pure(title,P,rho,d2AdT2,dAdT,Cv,dPdrho,inv_kT,kT,lnkT,dPdT,alfa,uJT,Cp,w,Cp1,Cv1,print_options):
     n = len(P)
-    header = 'P(MPa);rho(mol/m3);Cv;Cp;alfa;uJT;w;lnkT;inv_kT;kT;d2AdT2;dAdT;dPdrho;dPdT;\n'
+    header = 'P(MPa);rho(mol/m3);Cv_res;Cp_res;alfa;uJT;w;lnkT;inv_kT;kT;d2AdT2;dAdT;dPdrho;dPdT;Cv;Cp\n'
     savedir = str('../output/%s' %title)
     with open(savedir,'w') as file:
         file.write('Defined Configuration:----------------------\n')
@@ -218,7 +226,8 @@ def report_isothermal_dev_prop_pure(title,P,rho,d2AdT2,dAdT,Cv,dPdrho,inv_kT,kT,
         for i in range(0,n):
                 lin1 = [str(round(P[i],9)),str(round(rho[i],9)),str(round(Cv[i],9)),str(round(Cp[i],9)),
                 str(round(alfa[i],9)),str(round(uJT[i],9)),str(round(w[i],9)),str(round(lnkT[i],9)),str(round(inv_kT[i],9)),
-                str(round(kT[i],9)),str(round(d2AdT2[i],9)),str(round(dAdT[i],9)),str(round(dPdrho[i],9)),str(round(dPdT[i],9))]
+                str(round(kT[i],9)),str(round(d2AdT2[i],9)),str(round(dAdT[i],9)),str(round(dPdrho[i],9)),str(round(dPdT[i],9)),
+                str(round(Cv1[i],9)),str(round(Cp1[i],9))]
                 lin = ('%s\n' % ';'.join(lin1))
                 file.write(lin)
 #==================================================================================================

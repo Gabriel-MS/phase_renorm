@@ -1766,7 +1766,7 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
     rho_list.append(rho1)
     rho_list.append(rho2)
     
-    der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,fres_list,P_list,rho_list,h)
+    der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,fres_list,P_list,rho_list,h,IDs)
     
     return der_prop
 #====================================================================================== 
@@ -1894,7 +1894,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         reportname = str('Deriv_Prop_%s.csv' %('_'.join(print_options[1])))
         derivativeprop.report_isothermal_dev_prop_pure(reportname,dp_dat[0],dp_dat[1],dp_dat[2],dp_dat[3],dp_dat[4],dp_dat[5],dp_dat[6],
                                                      dp_dat[7],dp_dat[8],dp_dat[9],dp_dat[10],dp_dat[11],dp_dat[12],
-                                                     dp_dat[13],print_options)
+                                                     dp_dat[13],dp_dat[14],dp_dat[15],print_options)
         print ('Report %s saved successfully' %reportname)
 
         print 'Starting to plot pure isothermal derivative properties'

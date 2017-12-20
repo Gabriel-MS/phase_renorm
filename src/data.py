@@ -87,6 +87,18 @@ def omega(ID):
         omega_ID.append(omegas[i-1])
     return omega_ID
 #=======================================================================
+   
+#Function to get component mass----------
+def mass(ID):
+    
+    #Read values
+    df = pd.read_csv('../input/Mw.csv',sep=';',header=None)
+
+    out = []
+    out.append(df[2][ID[0]-1])
+
+    return out
+#=======================================================================   
     
 #Function to open csv databank and return A antoine parameters----------
 def A_antoine(ID):
@@ -143,6 +155,21 @@ def C_antoine(ID):
     for i in comp:
         C_ID.append(Cs[i-1])
     return C_ID
+#=======================================================================
+
+#Function to get Cp ideal coefficients for correlation------------------
+def cp_ig_coeff(ID):
+    
+    #Read values
+    df = pd.read_csv('../input/ideal_Cp.csv',sep=';',header=None)
+
+    out = []
+    out.append(df[2][ID[0]-1])
+    out.append(df[3][ID[0]-1])
+    out.append(df[4][ID[0]-1])
+    out.append(df[5][ID[0]-1])
+
+    return out
 #=======================================================================
 
 #Function to open csv databank and return a0 CPA parameters-------------
@@ -284,7 +311,7 @@ def truncate(f, digits):
 #===========================================================================
 
 #Function to open csv file with experimental T-density curve and output data---
-def loadexp3():
+def loadexp4():
     with open('../input/Methanol.csv') as csvfile:
         readCSV = csv.reader(csvfile, delimiter=';')
         next(readCSV, None)  # skip the header
