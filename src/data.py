@@ -341,6 +341,20 @@ def loadexp2(filename):
     return out
 #=============================================================================
 
+#Function to import dataframe-------------------------------------------------
+def loadexp3(filename):
+
+    #Read values
+    df = pd.read_csv('../input/%s'%filename,sep=';',header=None)
+
+    out = []
+    out.append(df[:][0].values.tolist())
+    out.append(df[:][1].values.tolist())
+    out.append(df[:][2].values.tolist())
+
+    return out
+#=============================================================================
+
 #Function to modify custom substance association parameters-------------------
 def modify_assoc(ID,e,b):
 
@@ -379,6 +393,27 @@ def modify_CPA(ID,vec):
     df.set_value(lin,10,c1)
     df.set_value(lin,11,e)
     df.set_value(lin,12,b)
+
+    #Save new values
+    df.to_csv('properties.csv',sep=';',index=False,index_label=False,header=False)
+
+    return df
+#=============================================================================
+
+#Function to modify custom substance association parameters-------------------
+def modify_renorm(ID,vec):
+
+    lin = ID[0]-1
+
+    #Read values
+    df = pd.read_csv('properties.csv',sep=';',header=None)
+
+    #Modify association energy and association volume
+    L = vec[0]
+    phi = vec[1]
+
+    df.set_value(lin,13,L)
+    df.set_value(lin,14,phi)
 
     #Save new values
     df.to_csv('properties.csv',sep=';',index=False,index_label=False,header=False)

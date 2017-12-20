@@ -782,8 +782,8 @@ def TV_envelope(Tvec,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     itmax = 100                 #Max number of iterations
     
     #tolerances
-    tolK = 1e-3             #iteration over Kx
-    toly = 1e-4             #iteration over y
+    tolK = 1e-2             #iteration over Kx
+    toly = 1e-3             #iteration over y
     
     #CPA auto-association configurations
     auto = []
@@ -878,9 +878,10 @@ def TV_envelope(Tvec,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
         pt = pt+1       #add counter pt
         it = 0          #zero counter it
         
-        print 'pt',pt,T,P,1/Vl
+        #print 'pt',pt,T,P,1/Vl
     #Main iteration end, range T============================================
-    raw_input('...')
+    
+    #input('...')
     out = []
     out.append(Pvec)
     out.append(xvec)
@@ -989,10 +990,12 @@ def coexistence_dens(rho1,f1):
     #u[n-1] = (f[n-1]-f[n-2])/drho
     #u[0] = (f[1]-f[0])/drho
     
-    V = 1/rho2
-    A = f2/rho2
-    dAdV = np.gradient(A,V,edge_order=2)
-    Pp = -dAdV
+    #V = 1/rho2
+    #A = f2/rho2
+    #print V,len(V)
+    #print A,len(A)
+    #dAdV = np.gradient(A,V,edge_order=2)
+    #Pp = -dAdV
     
     #Calcule pressure
     n = 10000
@@ -1726,19 +1729,19 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
         fres1.append(ren[7])
         rho1.append(ren[2])
         P1.append(ren[8])
-        #print 'central',T1,P1
+        #print 'central',T,dens[0],dens[1],dens[2],Fobj
 
         ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres2.append(ren[7])
         rho2.append(ren[2])
         P2.append(ren[8])
-        #print 'plus',T2,P2
+        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
 
         ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres0.append(ren[7])
         rho0.append(ren[2])
         P0.append(ren[8])
-        #print 'minus',T0,P0
+        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
 
         T = T+step
     
@@ -1936,9 +1939,9 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
         if EoS==2 or EoS==4 or EoS==6:
             print '\nCalculating renormalized helmholtz energy surface'
-            nd = 400
+            nd = 500
             nx = 200
-            n = 8
+            n = 5
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
@@ -1979,17 +1982,16 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
     if env_type==8 or env_type==9 or env_type==10:
         #Estimate Renormalization Parameters********************************************
         if env_type==8:
-            nd = 400
+            nd = 200
             nx = 200
             n = 5
             finalT = 530.0
             stepT = 0.5
             expname = []
-            expname.append('Tc_exp.data')
-            expname.append('Pc_exp.data')
+            expname.append('sat_exp_crit.data')
 
-            print '\nEstimating Renormalization Parameters'
-            param = renormalization.Estimate_Parameters(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False)
+            print '\nEstimating renormalization Parameters'
+            param = estimation.Estimate_Parameters_crit(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expname,True,False,AR)
             print 'Renormalization Parameters Estimated'
 
         #Estimate Association Parameters************************************************
@@ -2021,9 +2023,9 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             print 'CPA Parameters Estimated'
 
             print 'Creating estimation report'
-            reportname = str('../output/OBJ_CPA_%s.csv' %('_'.join(print_options[1])))
-            report_param(param[2],reportname,print_options)
-            reportname = str('../output/param_CPA_%s.csv' %('_'.join(print_options[1])))
-            report_param(param[1],reportname,print_options)
+            #reportname = str('../output/OBJ_CPA_%s.csv' %('_'.join(print_options[1])))
+            #report_param(param[2],reportname,print_options)
+            #reportname = str('../output/param_CPA_%s.csv' %('_'.join(print_options[1])))
+            #report_param(param[1],reportname,print_options)
             print ('Estimation reports saved successfully')
 #======================================================================================
