@@ -878,9 +878,9 @@ def TV_envelope(Tvec,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
         pt = pt+1       #add counter pt
         it = 0          #zero counter it
         
-        #print 'pt',pt,T,P,1/Vl
+        print 'pt',pt,T,P,1/Vl
     #Main iteration end, range T============================================
-    
+    raw_input('...')
     out = []
     out.append(Pvec)
     out.append(xvec)
@@ -1726,19 +1726,19 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
         fres1.append(ren[7])
         rho1.append(ren[2])
         P1.append(ren[8])
-        #print 'central',T,dens[0],dens[1],dens[2],Fobj
+        #print 'central',T1,P1
 
         ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres2.append(ren[7])
         rho2.append(ren[2])
         P2.append(ren[8])
-        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
+        #print 'plus',T2,P2
 
         ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         fres0.append(ren[7])
         rho0.append(ren[2])
         P0.append(ren[8])
-        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
+        #print 'minus',T0,P0
 
         T = T+step
     

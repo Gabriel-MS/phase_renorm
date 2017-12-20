@@ -146,7 +146,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             #Update Helmholtz Energy Density
             df = np.array(df)
             f = f + df
-            print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix
+            #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix
             i = i+1
 
         #Dimensionalization
@@ -210,7 +210,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         renorm_out.append(ren_u)
     else:
         renorm_out.append(0)
-    renorm_out.append(fv)
+    renorm_out.append(fresv)
     renorm_out.append(Pv)
     renorm_out.append(bmixv)
     return renorm_out

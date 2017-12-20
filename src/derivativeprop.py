@@ -33,17 +33,24 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h):
     A0 = f0/rho0
     A1 = f1/rho1
     A2 = f2/rho2
+
+    F0 = A0/(R*T0)
+    F1 = A1/(R*T1)
+    F2 = A2/(R*T2)
     
     n = len(P1[0])
     
     #Derivatives
     d2AdT2 = (A2 - 2*A1 + A0)/(h**2)
+    d2FdT2 = (F2 - 2*F1 + A0)/(h**2)
     
     dAdT = (A2 - A0)/(2*h)
+    dFdT = (F2 - F0)/(2*h)
 
     Pv = P1[0]
     rhov = rho1[0]
     Vv = V1[0]
+    Fv = F1[0]
 
     dPdrho = np.empty((n))
     for i in range(1,n-1):
@@ -63,11 +70,27 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h):
     d2PdV2[0] = (Pv[1]-Pv[0])/((Vv[1]-Vv[0])**2)
     d2PdV2[n-1] = (Pv[n-1]-Pv[n-2])/((Vv[n-1]-Vv[n-2])**2)
 
+    d2FdV2 = np.empty((n))
+    for i in range(1,n-1):
+        d2FdV2[i] = (Fv[i+1]+2*Fv[i]-Fv[i-1])/(Vv[i+1]-Vv[i-1])
+    d2FdV2[0] = (Fv[1]-Fv[0])/((Vv[1]-Vv[0])**2)
+    d2FdV2[n-1] = (Fv[n-1]-Fv[n-2])/((Vv[n-1]-Vv[n-2])**2)
+
+    #d2FdTV = np.empty((n))
+    #for i in range(1,n-1):
+    #    d2FdTV[i] = (dFdT[i+1]-dFdT[i-1])/(Vv[i+1]-Vv[i-1])
+    #d2FdTV[0] = (dFdT[1]-dFdT[0])/(Vv[1]-Vv[0])
+    #d2FdTV[n-1] = (dFdT[n-1]-dFdT[n-2])/(Vv[n-1]-Vv[n-2])
+
     d2PdT2 = (P2 - 2*P1 + P0)/(h**2)
+    dPdT = (P2 - P0)/(2*h)
+
+    #dPdV = -R*T*d2FdV2-R*T/(Vv**2)
+    #dPdT = -R*T*d2FdTV+Pv/T1[0]
 
     #Isochoric Heat Capacity
     Cv = -T1*d2AdT2
-    #Cv = -R*T1*T1*d2AdT2-2*R*T1*dAdT
+    #Cv = -R*T1*T1*d2FdT2-2*R*T1*dFdT
     Cv = Cv[0]
     
     #Isothermal compression coefficient
@@ -86,10 +109,10 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h):
     
     #Isobaric Heat Capacity
     Cp = Cv + T1[0]*(alfa**2)/kT/rhov
-    #Cp = Cv - T1[0]*d2PdT2[0]/dPdV-R
+    #Cp = Cv - T1[0]*(dPdT[0]**2)/dPdV-R
 
     #Speed of Sound
-    Mw = 0.05812
+    Mw = 0.03204
     w = (Cp/Cv*dPdrho/Mw*1e6)**(0.5)
     #w = (-(Vv**2)*Cp/Cv*dPdV/Mw)**(0.5)
     
@@ -142,34 +165,34 @@ def plot_isothermal_dev_prop_pure(P,rho,d2AdT2,dAdT,Cv,dPdrho,inv_kT,kT,lnkT,dPd
     fig, ax = plt.subplots(3,2,figsize=(10,10))
     
     ax[0,0].plot(P_plot,Cv_plot)
-    ax[0,0].set_xlim(xmin=0, xmax=25)
+    ax[0,0].set_xlim(xmin=0, xmax=10.107)
     ax[0,0].set_ylabel('Cv')
     ax[0,0].set_title('Cv')
     
     ax[0,1].plot(P_plot,lnkT_plot)
-    ax[0,1].set_xlim(xmin=0, xmax=25)
+    ax[0,1].set_xlim(xmin=0, xmax=10.107)
     ax[0,1].set_ylabel('lnkT')
     ax[0,1].set_title('lnkT')
     
     ax[1,0].plot(P_plot,alfa_plot)
-    ax[1,0].set_xlim(xmin=0, xmax=25)
+    ax[1,0].set_xlim(xmin=0, xmax=10.107)
     ax[1,0].set_ylabel('alfa')
     ax[1,0].set_title('alfa')
     
     ax[1,1].plot(P_plot,w_plot)
-    ax[1,1].set_xlim(xmin=0, xmax=25)
-    ax[1,1].set_ylim(ymin=800, ymax=1400)
+    ax[1,1].set_xlim(xmin=0, xmax=10.107)
+    ax[1,1].set_ylim(ymin=70, ymax=590)
     ax[1,1].set_ylabel('w')
     ax[1,1].set_title('w')
     
     ax[2,0].plot(P_plot,uJT_plot)
-    ax[2,0].set_xlim(xmin=0, xmax=25)
+    ax[2,0].set_xlim(xmin=0, xmax=10.107)
     ax[2,0].set_ylim(ymin=0, ymax=10)
     ax[2,0].set_ylabel('uJT')
     ax[2,0].set_title('uJT')
     
     ax[2,1].plot(P_plot,Cp_plot)
-    ax[2,1].set_xlim(xmin=0, xmax=25)
+    ax[2,1].set_xlim(xmin=0, xmax=10.107)
     ax[2,1].set_ylabel('Cp')
     ax[2,1].set_title('Cp')
     
