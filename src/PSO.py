@@ -31,7 +31,7 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
 
     #Initialize solutions-------------------------------------------------
     best_swarm_pos    = np.array(p[0])             #Best Swarm position, choosing "randomly the first particle"
-    best_swarm_obj    = np.array(objFunc(p[0],xdata))    #Objective Function of Best Swarm position
+    best_swarm_obj    = np.array(objFunc(p[0],xdata))[0]    #Objective Function of Best Swarm position
     best_particle_obj = np.empty((nswarm))          #Initialize Best Particle objective function
     best_particle_pos = np.empty((nswarm,nparam))          #Initialize Best Particle position
     Fobj              = np.empty((nswarm))          #Initialize objective function
@@ -44,7 +44,7 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
 
     for i in range(0,nswarm):
         for j in range(0,nparam):
-            v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j])))/100
+            v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j])))#/10
             
     #print '---best---'
     #for i in range(0,nswarm):
@@ -100,8 +100,8 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
                     p[i][j]=bmin[j]
                     
         #Save solutions to file
-        envelope.report_param(Fobjs,'../output/PSO_Fobjs.csv')
-        envelope.report_param(positions,'../output/PSO_parameters.csv')
+        envelope.report_param(Fobjs,'../output/PSO_renorm_Fobjs.csv')
+        envelope.report_param(positions,'../output/PSO_renorm_parameters.csv')
         Fobjs[:] = []
         positions[:] = []
         
@@ -120,8 +120,8 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
     return out_PSO
 #===================================================================================================
 
-#Molecular-Dynamics PSO routine-------------------------------------------------------------------------------
-def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
+#Lennard-Jones PSO routine-------------------------------------------------------------------------------
+def LJPSO(nparam,ndata,nswarm,objFunc,args,p):
     #nparam  - number of parameters
     #ndata   - number of data points
     #nswarm  - number of particles
@@ -135,14 +135,18 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
     #Initialize PSO parameters--------------------------------------------
     k = 1           #iteration counter
     kmax = 10000     #max iterations allowed
-    c1 = 0.5        #weight of particle's best position distance
-    c2 = 1.0        #weight of swarm's best position distance
+    c1 = 1.5        #weight of particle's best position distance
+    c2 = 2.5        #weight of swarm's best position distance
     w = 0.5         #weight of particle's last velocity
-    tol = 1e-4     #tolerance
+    tol = 1e-5     #tolerance
     eps = 1.0       #epsilon LJ parameter
     sig = 1.0       #sigma LJ parameter
-    m   = np.linspace(1e4,1e4,nswarm) #mass of particles
+    rc  = 1.0       #cutoff radius
+    m   = np.linspace(1.0,1.0,nswarm) #mass of particles
     flagcount = 0   #Number of stationary particles
+    scale = np.ones((nparam)) #Parameters scale
+    for i in range(0,nparam):
+        scale[i] = numerical.magnitude(p[0][i])
     #====================================================================
     
     #Initialize solutions-------------------------------------------------
@@ -153,25 +157,14 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
     Fobj              = np.empty((nswarm))          #Initialize objective function
     v                 = np.empty((nswarm,nparam))   #Initial velocities
     a                 = np.zeros((nswarm,nparam))   #Initial accelerations
-    positions    = []                          #Vector of ALL global positions
-    Fobjs        = []                          #Vector of ALL objective functions
     flag              = np.empty((nswarm))
-    scale = np.ones((nparam))                       #Parameters scale
-    rc    = np.ones((nparam))                       #Cut-off radius
-    dij   = np.ones((nparam))                       #Distance
-    for j in range(0,nparam):
-        scale[j] = numerical.magnitude(p[0][j])
-        rc[j] = 1*10**(scale[j]-4) #cutoff radius
-    print rc
-
     for i in range(0,nswarm):
         for j in range(0,nparam):
-            v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j])))/100
+            v[i][j]          = np.random.uniform(0,1)*(1*(10**(scale[j]))) 
         flag[i]       = False
-
-    #for i in range(0,nswarm):
-    #    best_particle_obj[i] = abs(np.array(objFunc(p[i],xdata))) #Objective Function of Best Particle position
-    #    best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
+    for i in range(0,nswarm):
+        best_particle_obj[i] = abs(np.array(objFunc(p[i],xdata))) #Objective Function of Best Particle position
+        best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
     Fobj_old = best_particle_obj
     #=====================================================================
     
@@ -185,13 +178,6 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
             if flag[i]==False:
                 Fobj[i] = objFunc(p[i],xdata)[0]
                 Fobj[i] = abs(Fobj[i])
-                positions.append(p[i]) #Save each position
-                Fobjs.append(Fobj[i])     #Save each respective objective function value
-                if k==1:
-                    best_particle_obj[i] = Fobj[i] #Objective Function of Best Particle position
-                    best_particle_pos[i] = np.array(p[i])          #Objective Function of Best Particle position
-                    Fobj_old[i] = best_particle_obj[i]
-                print 'i',i,Fobj[i]
             
                 #Update each particle best position
                 if Fobj[i]<=Fobj_old[i]:
@@ -202,8 +188,6 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
                         flag[i] = True
                         p[i] = best_particle_pos[i]
                         flagcount = flagcount+1
-                        envelope.report_param(best_particle_pos,'../output/MDPSO_conv_best_pos.csv')
-                        envelope.report_param(best_particle_obj,'../output/MDPSO_conv_best_Fobjs.csv')
                 
                 #Update swarm best position
                 if Fobj[i]<=best_swarm_obj:
@@ -235,12 +219,11 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
                     d = 0
                     for j in range(0,nparam):
                         d = d + (p[i][j]-p[l][j])**2
-                        dij[j] = abs(p[i][j]-p[l][j])
                     rij = d**0.5
                     #print rij,i,l
-                    for j in range(0,nparam):
-                        if rij<rc[j]: #distance between particles in j parameter is less than cut-off radius
-                            Fij = np.random.rand()*3.14/rc[j]*math.cos(3.14*rij/rc[j])*(p[i][j]-p[l][j])
+                    if rij<rc: #distance between particles is less than cut-off radius
+                        for j in range(0,nparam):
+                            Fij = np.random.rand()*3.14/rc*math.cos(3.14*rij/rc)*(p[i][j]-p[l][j])
                             F[i][j] = F[i][j] + Fij
                             F[l][j] = F[l][j] - Fij
 
@@ -250,10 +233,8 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
             if flag[i]==False:
                 for j in range(0,nparam):
                     a[i][j] = F[i][j]/m[i]
-                    p[i][j] = p[i][j] + a[i][j]*(1*(10**(scale[j])))
-        #print a[0]
+                    p[i][j] = p[i][j] + a[i][j]*(1*(10**(scale[j])))/10
 
-        """
         #Plot actual status
         h = k
         if h%1==0:
@@ -277,27 +258,17 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
             plt.xlim(1e-10,9e-10)
             plt.ylim(0,10)
             plt.savefig('xyk.png')
-        """
-        
-        #Save solutions to file
-        envelope.report_param(Fobjs,'../output/MDPSO_Fobjs.csv')
-        envelope.report_param(positions,'../output/MDPSO_parameters.csv')
-        Fobjs[:] = []
-        positions[:] = []
         
         #Update iteration counter
         k = k+1       
-        print 'k',k-1,best_swarm_pos,best_swarm_obj,np.mean(best_particle_obj),flagcount
+        print 'k',k,best_swarm_pos,best_swarm_obj,np.amax(best_particle_pos),flagcount
         #raw_input('...')
     #=====================================================================
     
     
     for i in range(0,nswarm):
         print best_particle_pos[i],best_particle_obj[i]
-    envelope.report_param(best_particle_pos,'../output/MDPSO_best_pos.csv')
-    envelope.report_param(best_particle_obj,'../output/MDPSO_best_Fobjs.csv')
-
-    """
+    
     #plot solution
     x = np.empty((flagcount))
     y = np.empty((flagcount))
@@ -310,14 +281,10 @@ def MDPSO(nparam,ndata,nswarm,objFunc,args,p):
     fig = plt.figure()
     plt.plot(x,y,'r.')
     plt.savefig('../output/xy.png')
-    """
 
     pos = []
     pos.append(x)
     pos.append(y)
-    pos.append(best_swarm_pos)
-    pos.append(best_particle_pos)
-    pos.append(best_particle_obj)
 
     return pos
-#===================================================================================================
+#=================================================================================================

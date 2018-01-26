@@ -194,9 +194,10 @@ def objFunc_dens_Psat_crit(par,argss):
 
     #Recover Experimental data for liquid saturated density
     T_exp    = data.loadexp3(expfile[0])[0] #Temperatures
-    Psat_exp = data.loadexp3(expfile[0])[1] #Liquid Saturated Density
+    Psat_exp = data.loadexp3(expfile[0])[1] #Saturated Vapor Pressure
     #Psat_var = data.loadexp2(expfile[0])[2] #Liquid Saturated Density
-    dens_exp = data.loadexp3(expfile[0])[2] #Saturated Vapor Pressure
+    dens_liq_exp = data.loadexp3(expfile[0])[2] #Liquid Saturated Density
+    dens_vap_exp = data.loadexp3(expfile[0])[3] #Vapor Saturated Density
     #dens_var = data.loadexp2(expfile[0])[4] #Saturated Vapor Pressure
     
 
@@ -206,25 +207,34 @@ def objFunc_dens_Psat_crit(par,argss):
     #dens_calc = 1/np.array((env[3]))
     #Psat_calc = np.array((env[0]))
     env = envelope.PV_vec_envelope(EoS,IDs,MR,T_exp,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
-    dens_calc = env[2]
+    dens_liq_calc = env[2]
+    dens_vap_calc = env[1]
     Psat_calc = env[3]
 
     #Calculate Objective Function
-    dens_calc = np.array(dens_calc)
+    dens_liq_calc = np.array(dens_liq_calc)
+    dens_vap_calc = np.array(dens_vap_calc)
     Psat_calc = np.array(Psat_calc)
-    dens_exp = np.array(dens_exp)
+    dens_liq_exp = np.array(dens_liq_exp)
+    dens_vap_exp = np.array(dens_vap_exp)
     Psat_exp = np.array(Psat_exp)
 
-    Fobj_dens = np.sum((dens_calc-dens_exp)**2/dens_exp)
-    Fobj_P    = np.sum((Psat_calc-Psat_exp)**2/Psat_exp)
-    Fobj      = Fobj_dens + 5*Fobj_P
+    Fobj_dens_liq = np.sum(((dens_liq_calc-dens_liq_exp)/dens_liq_exp)**2)
+    Fobj_dens_vap = np.sum(((dens_vap_calc-dens_vap_exp)/dens_vap_exp)**2)
+    Fobj_P    = np.sum(((Psat_calc-Psat_exp)/Psat_exp)**2)
+    #for i in range(0,len(dens_liq_calc)):
+        #if dens_liq_calc[i]<0.1:
+        #    Fobj_dens_liq = 100.0
+        #if dens_vap_calc[i]<0.1:
+        #    Fobj_dens_vap = 100.0
+    Fobj      = Fobj_dens_liq + Fobj_dens_vap + 5*Fobj_P
 
     
     print '--------------------------------'
     print 'Parameters:',L__est,phi__est
     #print 'Critical Temperature:',Tc_calc,Tc_exp
     #print 'Critical Pressure:',Pc_calc,Pc_exp
-    print 'Objective Function:',Fobj,Fobj_dens,Fobj_P
+    print 'Objective Function:',Fobj,Fobj_dens_liq,Fobj_dens_vap,Fobj_P
     print '--------------------------------\n'
     
     out = []
@@ -232,7 +242,8 @@ def objFunc_dens_Psat_crit(par,argss):
     #out.append(Tc_calc)
     #out.append(Pc_calc)
     #out.append(rhoc_calc)
-    out.append(Fobj_dens)
+    out.append(Fobj_dens_liq)
+    out.append(Fobj_dens_vap)
     out.append(Fobj_P)
     return out
 #=========================================================================================
@@ -545,7 +556,7 @@ def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
 def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool,AR):
 
     #Parameters for PSO
-    nswarm = 10
+    nswarm = 20
     nparameter = 2
     ny = 2
     ndata = 1
@@ -553,10 +564,10 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #Create boundaries
     bmax = np.empty((2))
     bmin = np.empty((2))
-    bmin[0] = 4E-10
-    bmax[0] = 6E-10
+    bmin[0] = 1E-10
+    bmax[0] = 9E-10
     bmin[1] = 0.01
-    bmax[1] = 10.0
+    bmax[1] = 10.00
     
     #Organize Parameters
     #Organize Parameters
@@ -586,6 +597,10 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     for i in range(0,nswarm):
         for j in range(0,nparameter):
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
+    
+    #p[0][0] = 2.68217533e-10
+    #p[0][1] = 7.79517418
+    
     print 'particles'
     print p
     

@@ -1007,6 +1007,8 @@ def coexistence_dens(rho1,f1):
         P[i]=a*rho[i]+b
         i = i + 1
 
+    #data.modify_isotherm(P,rho) #Change reported isotherm
+    #raw_input('isotherm modified')
 
     #P = Pp
 
@@ -1563,7 +1565,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
             rhol.append(dens[1])
             Pv.append(dens[2])
         Fobj = abs(dens[0]-dens[1])
-        #print T,dens[0],dens[1],dens[2],Tmax,Tmin
+        print T,dens[0],dens[1],dens[2],Tmax,Tmin
 
         if dens[2]!=0:
             flag0 = False
@@ -1912,14 +1914,14 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         nx = 200
         n = 8
         finalT = 530.0
-        stepT = 0.5
+        stepT = 2.5
         print '\nCalculating PV envelope'
         if env_type==2:
             env_PV = PV_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            env_PV = PV_findTc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
         print 'PV envelope calculated'
 
         print 'Creating pure PV report'

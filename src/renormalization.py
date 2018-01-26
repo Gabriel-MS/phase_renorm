@@ -535,6 +535,7 @@ def helm_short(EoS,rho,f,phi,i):
         2: f - f0a*phi/(2**(2*i)),      #SRK+RG
         4: f - f0a*phi/(2**(2*i)),      #PR+RG
         6: f - f0a*phi/(2**(2*i+1)) #CPA+RG
+        #6: f - f0a*phi/(2**(2*i)) #CPA+RG
     }.get(EoS,'NULL')
     
     return fshort

@@ -378,6 +378,7 @@ def loadexp3(filename):
     out.append(df[:][0].values.tolist())
     out.append(df[:][1].values.tolist())
     out.append(df[:][2].values.tolist())
+    out.append(df[:][3].values.tolist())
 
     return out
 #=============================================================================
@@ -446,4 +447,19 @@ def modify_renorm(ID,vec):
     df.to_csv('properties.csv',sep=';',index=False,index_label=False,header=False)
 
     return df
+#=============================================================================
+
+#Function to modify calculated isotherm---------------------------------------
+def modify_isotherm(P,rho):
+
+    #Read values
+    df = pd.read_csv('../output/isotherm.csv',sep=';',header=None)
+
+    #Change values
+    for i in range(0,len(rho)):
+        df.set_value(i,0,rho[i])
+        df.set_value(i,1,P[i])
+
+    #Save new values
+    df.to_csv('../output/isotherm.csv',sep=';',index=False,index_label=False,header=False)
 #=============================================================================
