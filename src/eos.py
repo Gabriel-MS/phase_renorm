@@ -629,15 +629,19 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
     if EoS==1:
         lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
         out.append(lnfugcoef)
+        out.append(0)
     elif EoS==2:
         lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
         out.append(lnfugcoef)
+        out.append(0)
     elif EoS==3:
         lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
         out.append(lnfugcoef)
+        out.append(0)
     elif EoS==4:
         lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
         out.append(lnfugcoef)
+        out.append(0)
     elif EoS==5:
         lnfugcoef = lnfugcoef_CPA(IDs,EoS,MR,P,T,x,kij,phase,V,X,a,b,amix,bmix)
         out.append(lnfugcoef)

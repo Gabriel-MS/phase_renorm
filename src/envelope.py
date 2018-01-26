@@ -1279,15 +1279,6 @@ def inflex_search(rho1,f1):
     u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
     
     drho = rho[n/2]-rho[n/2-1]
-    #for i in range(1,n-2):
-    #    u[i] = (f[i+1]-f[i-1])/(2*drho)
-    #u[n-1] = (f[n-1]-f[n-2])/drho
-    #u[0] = (f[1]-f[0])/drho
-    
-    V = 1/rho2
-    A = f2/rho2
-    dAdV = np.gradient(A,V,edge_order=2)
-    Pp = -dAdV
     
     #Calcule pressure
     n = 10000
@@ -1299,14 +1290,12 @@ def inflex_search(rho1,f1):
         P[i]=a*rho[i]+b
         i = i + 1
 
-
-    #P = Pp
-
-    Pspl = splrep(rho,P,k=3)
+    Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
     P = splev(rho,Pspl,der=0)
-    dPdrho = splev(rho,Pspl,der=1)
+    dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
     d2Pdrho2 = splev(rho,Pspl,der=2)
 
+    """
     inflex = False
 
     dens = []
@@ -1331,6 +1320,50 @@ def inflex_search(rho1,f1):
         dens.append(0)
         dens.append(dist)
         dens.append(inflex)
+    """
+    
+    dens = []
+    tol = 1e-5
+    min_d2P = numerical.falsi_spline(rho,d2Pdrho2,1,len(dPdrho)-1,tol)
+    dP_min = InterpolatedUnivariateSpline(rho,dPdrho,k=3)(min_d2P)
+    inflex = False
+    inflex2 = False
+    
+    if dP_min<=1e-5 and dP_min>=0:  #T=Tc
+        rhoc = min_d2P
+        Pc = InterpolatedUnivariateSpline(rho,P,k=3)(min_d2P)
+        inflex = True
+        inflex2 = False
+        dens.append(rhoc)
+        dens.append(rhoc)
+        dens.append(Pc)
+        dens.append(Pc)
+        dens.append(0)
+        dens.append(dP_min)
+        dens.append(inflex)
+        dens.append(inflex2)
+    if dP_min<0:                   #T<Tc
+        inflex = False
+        inflex2 = False
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(dP_min)
+        dens.append(inflex)
+        dens.append(inflex2)
+    if dP_min>1e-5:                #T>Tc
+        inflex = False
+        inflex2 = True
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(dP_min)
+        dens.append(inflex)
+        dens.append(inflex2)
     
     return dens
 #======================================================================================
@@ -1913,7 +1946,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         nd = 400
         nx = 200
         n = 8
-        finalT = 530.0
+        finalT = 700.0
         stepT = 2.5
         print '\nCalculating PV envelope'
         if env_type==2:
@@ -1921,7 +1954,8 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+            #env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+            env_PV = PV_findTc2_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         print 'PV envelope calculated'
 
         print 'Creating pure PV report'
@@ -1943,7 +1977,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             print '\nCalculating renormalized helmholtz energy surface'
             nd = 500
             nx = 200
-            n = 5
+            n = 8
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
