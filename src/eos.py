@@ -376,8 +376,14 @@ def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM,r_data):
 #Molar volume calculation-------------------------------------
 def V_func(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM,r_data):
 
-    if EoS<5:
+    if EoS==1:
         V = V_calc(EoS,P,T,amix,bmix,phase)
+    if EoS==2:
+        V = renormalization.volume_renorm(phase,x[0],P,bmix,R,T,r_data)
+    if EoS==3:
+        V = V_calc(EoS,P,T,amix,bmix,phase)
+    if EoS==4:
+        V = renormalization.volume_renorm(phase,x[0],P,bmix,R,T,r_data)
     if EoS==5:
         V = V_CPA(EoS,P,T,amix,bmix,b,phase,Vinit,CR,en_auto,beta_auto,x,a,SM)
     if EoS==6:
@@ -623,6 +629,14 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
         cpa = V_func(EoS,P,T,amix,bmix,b,phase,V,CR,en_auto,beta_auto,x,a,SM,r_data)
         V = cpa[0]
         X = cpa[1]
+
+    if EoS==2 or EoS==4:
+        a = a_calc(IDs,EoS,T)
+        b = b_calc(IDs,EoS)
+        amix = amix_calc(MR,a,x,kij)
+        bmix = bmix_calc(MR,b,x)
+        vout = V_func(EoS,P,T,amix,bmix,b,phase,V,CR,en_auto,beta_auto,x,a,SM,r_data)
+        V = vout[0]
     
     out = []
     
@@ -631,7 +645,7 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
         out.append(lnfugcoef)
         out.append(0)
     elif EoS==2:
-        lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        lnfugcoef = renormalization.lnfugcoef_renorm(P,T,x,phase,V,r_data,bmix)
         out.append(lnfugcoef)
         out.append(0)
     elif EoS==3:
@@ -639,7 +653,7 @@ def lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,phase,V,en_auto,beta_auto,CR,SM,it,pt,r_
         out.append(lnfugcoef)
         out.append(0)
     elif EoS==4:
-        lnfugcoef = lnfugcoef_calc(IDs,EoS,MR,P,T,x,kij,phase)
+        lnfugcoef = renormalization.lnfugcoef_renorm(P,T,x,phase,V,r_data,bmix)
         out.append(lnfugcoef)
         out.append(0)
     elif EoS==5:

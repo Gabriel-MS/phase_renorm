@@ -428,13 +428,13 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         #plt.ylim(-15,15)
         #plt.show()
         max1 = 2
-        min1 = int(0.90*nd)
+        min1 = int(0.95*nd)
         max2 = max1+2
         min2 = min1-2
         #print rho[max1],rho[max2]
-        while Pfvec[max1]*Pfvec[max2]>0:
+        while Pfvec[max1]*Pfvec[max2]>0 and max2<len(Pfvec):
             #max2 = max2+int(nd/200)
-            max2 = max2+2
+            max2 = max2+1
             #print 'max',max2
         if max2-int(nd/100)<0:
             max1 = 0
@@ -496,9 +496,10 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
 
     #Considering ideal gas energy contribution
     f = {
-        2: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix),
+        2: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix), #SRK+RG
         #2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #SRK+RG
-        4: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #PR+RG
+        4: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix), #PR+RG
+        #4: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #PR+RG
         #6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
         6: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
     }.get(EoS,'NULL')

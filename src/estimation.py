@@ -598,8 +598,8 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
         for j in range(0,nparameter):
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
     
-    #p[0][0] = 2.68217533e-10
-    #p[0][1] = 7.79517418
+    p[0][0] = 7.207e-10
+    p[0][1] = 0.60
     
     print 'particles'
     print p
