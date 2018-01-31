@@ -248,6 +248,75 @@ def objFunc_dens_Psat_crit(par,argss):
     return out
 #=========================================================================================
 
+#Calculate Objective function based on critical point---
+def objFunc_dens_Psat_Tc(par,argss):
+
+    #Parameters
+    EoS     = argss[0]
+    IDs     = argss[1]
+    MR     = argss[2]
+    T      = argss[3]
+    Tfinal  = argss[4]
+    stepT   = argss[5]
+    nd      = argss[6]
+    nx      = argss[7]
+    kij     = argss[8]
+    nc      = argss[9]
+    CR      = argss[10]
+    en_auto = argss[11]
+    beta_auto = argss[12]
+    SM      = argss[13]
+    n       = argss[14]
+    estimate_bool = argss[15]
+    crit_bool = argss[16]
+    expfile = argss[17]
+    AR      = argss[18]
+
+    #Particle parameters
+    L__est = par[0]
+    phi__est = par[1]
+
+    #Modify renormalization parameters
+    data.modify_renorm(IDs,par)
+    
+    #Recover Experimental data for critical point
+    T_exp    = data.loadexp3(expfile[0])[0] #Temperatures
+    Psat_exp = data.loadexp3(expfile[0])[1] #Saturated Vapor Pressure
+    dens_liq_exp = data.loadexp3(expfile[0])[2] #Liquid Saturated Density
+    
+    Tc_exp = T_exp[len(T_exp)-1]
+    Pc_exp = Psat_exp[len(Psat_exp)-1]
+    rhoc_exp = dens_liq_exp[len(dens_liq_exp)-1]
+    
+    #Calculates critical point
+    Crit = envelope.PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+    Tc_calc = Crit[0]
+    Pc_calc = Crit[3]
+    rhoc_calc = Crit[1]
+
+    Fobj_Tc = abs((Tc_calc-Tc_exp)/Tc_exp)
+    Fobj_Pc = abs((Pc_calc-Pc_exp)/Pc_exp)
+    Fobj_rhoc    = abs((rhoc_calc-rhoc_exp)/rhoc_exp)
+    Fobj      = Fobj_Tc + Fobj_Pc + Fobj_rhoc
+    
+    print '--------------------------------'
+    print 'Parameters:',L__est,phi__est
+    print 'Critical Point:',Tc_calc,Pc_calc,rhoc_calc
+    print 'Critical deltas:',abs(Tc_calc-Tc_exp),abs(Pc_calc-Pc_exp),abs(rhoc_calc-rhoc_exp)
+    print 'Objective Function:',Fobj,Fobj_Tc,Fobj_Pc,Fobj_rhoc
+    print '--------------------------------\n'
+    
+    out = []
+    out.append(Fobj)
+    #out.append(Tc_calc)
+    #out.append(Pc_calc)
+    #out.append(rhoc_calc)
+    out.append(Fobj_Tc)
+    out.append(Fobj_Pc)
+    out.append(Fobj_rhoc)
+    return out
+#=========================================================================================
+
 #Given initial T, using renormalization method, estimate association parameters----------
 def Estimate_Parameters_assoc(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool,AR):
 
@@ -565,8 +634,8 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     bmax = np.empty((2))
     bmin = np.empty((2))
     bmin[0] = 1E-10
-    bmax[0] = 9E-10
-    bmin[1] = 0.01
+    bmax[0] = 10E-10
+    bmin[1] = 0.10
     bmax[1] = 10.00
     
     #Organize Parameters
@@ -597,18 +666,31 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     for i in range(0,nswarm):
         for j in range(0,nparameter):
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
+            #p[i][1] = 1.0
     
-    p[0][0] = 7.207e-10
-    p[0][1] = 0.60
+    #p[0][0] = 7.207e-10
+    #p[0][1] = 0.60
     
     print 'particles'
     print p
     
-    #Initialize PSO method
+    #Initialize PSO method - ALL PARAMETERS
     best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
     best_param = best[0]
     param_list = best[1]
     param_Fobj = best[2]
+    
+    #Initialize PSO method to fit parameter 1 (L)
+    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_Tc,argss,p,bmin,bmax)
+    #best_param = best[0]
+    #param_list = best[1]
+    #param_Fobj = best[2]
+
+    #Initialize PSO method to fit parameter 2 (phi)
+    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
+    #best_param = best[0]
+    #param_list = best[1]
+    #param_Fobj = best[2]
 
     #Modify parameters in properties data bank, using best found solution
     data.modify_CPA(IDs,best[0])

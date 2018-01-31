@@ -463,3 +463,20 @@ def modify_isotherm(P,rho):
     #Save new values
     df.to_csv('../output/isotherm.csv',sep=';',index=False,index_label=False,header=False)
 #=============================================================================
+
+#Function to modify calculated isotherm---------------------------------------
+def modify_isotherm2(rho,P,dP,d2P):
+
+    #Read values
+    df = pd.read_csv('../output/isotherm.csv',sep=';',header=None)
+
+    #Change values
+    for i in range(0,len(rho)):
+        df.set_value(i,0,rho[i])
+        df.set_value(i,1,P[i])
+        df.set_value(i,2,dP[i])
+        df.set_value(i,3,d2P[i])
+
+    #Save new values
+    df.to_csv('../output/isotherm.csv',sep=';',index=False,index_label=False,header=False)
+#=============================================================================

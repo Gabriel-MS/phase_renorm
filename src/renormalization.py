@@ -191,6 +191,9 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         fmatres.append(fres)
 
         x[0] = x[0]+stepx
+        #if nc>1:
+        #    if abs(x[0]-1.0)<1e-5:
+        #        x[0] = 0.9999
         
     if nc>1:
         Pmat = RectBivariateSpline(x0v,rhob,Pmatv)
@@ -422,38 +425,46 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         dPdrho[nd-1] = (Pvec[nd-1] - Pvec[nd-2])/(float(nd-1)/nd-float(nd-2)/nd)
 
         #Bracketing the real densities at given P
+        #print rho
         #print Pvec
         #print Pfvec
         #plt.plot(rho,Pvec)
         #plt.ylim(-15,15)
         #plt.show()
         max1 = 2
-        min1 = int(0.95*nd)
+        min1 = int(0.90*nd) #it was 0.90 before
         max2 = max1+2
         min2 = min1-2
-        #print rho[max1],rho[max2]
-        while Pfvec[max1]*Pfvec[max2]>0 and max2<len(Pfvec):
+        #print rho[max1],rho[max2],max1,max2,min1,min2
+        #raw_input('before')
+        while Pfvec[max1]*Pfvec[max2]>0:# and max2<len(Pfvec):
             #max2 = max2+int(nd/200)
             max2 = max2+1
             #print 'max',max2
+            #raw_input('max')
         if max2-int(nd/100)<0:
             max1 = 0
             #print 'max1',max1
         else:
             #max1 = max2-int(nd/100)
-            max1 = max2-2
+            max1 = max2-4
             #print 'else',max1
 
-        while Pfvec[min1]*Pfvec[min2]>0:
+        while Pfvec[min1]*Pfvec[min2]>0 and min2>0:
             #min2 = min2-int(nd/200)
-            min2 = min2-2
+            min2 = min2-1
+            #print 'min',min2
+            #raw_input('min')
         #min1 = min2+int(nd/100)
-        min1 = min2+2
+        min1 = min2+4
 
         #print 'falsi_spline',rho[max1],rho[max2],rho[min1],rho[min2]
         #Calculate coexistence densities in interpolated isotherm for given P
         rho_vap = numerical.falsi_spline(rho, Pfvec, rho[max1], rho[max2], 1e-5)
+        #print 'rho_vap',rho_vap
         rho_liq = numerical.falsi_spline(rho, Pfvec, rho[min2], rho[min1], 1e-5)
+        #print 'rho_liq',rho_liq
+        #raw_input('...')
 
         if inflex==True and abs(rho_vap-rho_liq)<1e-5:
             Pint=Pint/2

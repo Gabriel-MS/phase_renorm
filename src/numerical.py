@@ -112,8 +112,8 @@ def bin_min_seed(vec,seed):
 def falsi_spline(x,y,a,b,tol):
     yc = tol+1
     it = 0
-    a0 = a
-    b0 = b
+    a0 = float(a)
+    b0 = float(b)
     #spl = splrep(x,y,k=3)
     #spl = UnivariateSpline(x,y)
     #spl.set_smoothing_factor(0.5)
@@ -140,7 +140,7 @@ def falsi_spline(x,y,a,b,tol):
             a = c
             
         if c<a or c>b:
-            c = bisect_spline(x,y,a0,b0,tol)
+            c = bisect_spline(x,y,a0,b0,tol,200)
             yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
             break
         it = it+1
@@ -149,18 +149,23 @@ def falsi_spline(x,y,a,b,tol):
 #==========================================================================================
 
 #Uses Bisection method with cubic spline interpolation to find root in given interval------
-def bisect_spline(x,y,a,b,tol):
+def bisect_spline(x,y,a,b,tol,itmax):
     yc = tol+1
     it = 0
     a0 = a
     b0 = b
-    while abs(yc)>tol:
+    a = float(a)
+    b = float(b)
+    while abs(yc)>tol and it<itmax:
         ya = InterpolatedUnivariateSpline(x,y,k=3)(a)
         yb = InterpolatedUnivariateSpline(x,y,k=3)(b)
         c = (a+b)/2
-        
-        if it>5:
-            yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
+        yc = InterpolatedUnivariateSpline(x,y,k=3)(c)
+            
+        #print a,ya
+        #print b,yb
+        #print c,yc
+        #raw_input('...')
             
         if ya*yc<0:
             b = c

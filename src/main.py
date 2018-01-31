@@ -19,8 +19,8 @@ print ('    ============================================\n\n\n')
 #user_options = menus.user()
 user_options = []
 user_options.append(2) #nc
-user_options.append([12,16]) #IDs
-user_options.append(2) #EoS
+user_options.append([12,17]) #IDs
+user_options.append(6) #EoS
 user_options.append(1) #MR
 user_options.append([0.3,0.7]) #z
 user_options.append([3,3]) #CPA AM
@@ -51,7 +51,7 @@ AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
 env_type = 6
 P = 0.05
-T = 280.00
+T = 311.00
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations

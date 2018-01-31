@@ -651,8 +651,8 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     
     #Definitions--------------------------------------------------
     #Main iteration conditions
-    x = np.array([0.0001,0.9999]) #x array
-    xf = 1.0                    #Main stop condition
+    x = np.array([0.01,0.99]) #x array
+    xf = 0.995                    #Main stop condition
     stepx = 5e-3                #Main step
     it = 0                      #Iteration counter
     ity = 0                     #Iteration over y loop counter
@@ -680,6 +680,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     print Psat,x,P,y
     Vv = R*T/P #Not going to be used, just starting
     Vl = 0.99  #Not going to be used, just starting
+    P = P/10
     #=============================================================
     
     #Main iteration start, range x1------------------------------------------
@@ -1249,7 +1250,7 @@ def coexistence_dens(rho1,f1):
 #======================================================================================
 
 #Given pure component isotherm, calculates phase coexistence densities-----------------
-def inflex_search(rho1,f1):
+def inflex_search(rho1,f1,tolI):
 
     rho1 = np.array(rho1)
     f1 = np.array(f1)
@@ -1267,7 +1268,6 @@ def inflex_search(rho1,f1):
     #print n,rhomax
     for i in range(0,10000):
         rho2[i] = i*rhomax/10000
-        #print rho2[i],i,float(i/10000)
     rho2[0] = 1e-5
     f2 = splev(rho2,fspl)        #Evaluate Cubic Spline First derivative
     f = f2
@@ -1278,23 +1278,45 @@ def inflex_search(rho1,f1):
 
     u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
     
-    drho = rho[n/2]-rho[n/2-1]
+    #drho = rho[n/2]-rho[n/2-1]
     
     #Calcule pressure
     n = 10000
     P = -f+rho*u
-    a = (P[n/2-15]-P[n/2+15])/(rho[n/2-15]-rho[n/2+15])
-    b = P[n/2+15]-a*rho[n/2+15]
-    i = n/2-15
-    while i<(n/2+15):
-        P[i]=a*rho[i]+b
-        i = i + 1
+    #a = (P[n/2-15]-P[n/2+15])/(rho[n/2-15]-rho[n/2+15])
+    #b = P[n/2+15]-a*rho[n/2+15]
+    #i = n/2-15
+    #while i<(n/2+15):
+    #    P[i]=a*rho[i]+b
+    #    i = i + 1
 
     Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
     P = splev(rho,Pspl,der=0)
     dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
     d2Pdrho2 = splev(rho,Pspl,der=2)
-
+    
+    data.modify_isotherm2(rho,P,dPdrho,d2Pdrho2)
+    #raw_input('......')
+    
+    """
+    #Create figure
+    fig, ax = plt.subplots(1,1)
+    
+    #Data
+    plt.plot(rho,P)
+    
+    #Axis size
+    #plt.ylim([ydata[0]-20,ydata[size-1]+20])
+    
+    #Save figure with 1000 dpi resolution
+    figsavedir = str('../output/test.png')
+    fig.savefig(figsavedir, dpi=1000)
+    """
+    
+    #for i in range(0,len(P)):
+    #    if i%50==0:
+    #        print 'P',i,rho[i],P[i],dPdrho[i],d2Pdrho2[i]
+    
     """
     inflex = False
 
@@ -1323,13 +1345,17 @@ def inflex_search(rho1,f1):
     """
     
     dens = []
-    tol = 1e-5
-    min_d2P = numerical.falsi_spline(rho,d2Pdrho2,1,len(dPdrho)-1,tol)
+    tol = 1e-10
+
+    #print 'search minimum'
+    min_d2P = numerical.bisect_spline(rho,d2Pdrho2,rho[n/10],rho[len(rho)-n/10],tol,200)
     dP_min = InterpolatedUnivariateSpline(rho,dPdrho,k=3)(min_d2P)
     inflex = False
     inflex2 = False
     
-    if dP_min<=1e-5 and dP_min>=0:  #T=Tc
+    #print 'min=',min_d2P,dP_min
+    
+    if abs(dP_min)<=tolI:  #T=Tc
         rhoc = min_d2P
         Pc = InterpolatedUnivariateSpline(rho,P,k=3)(min_d2P)
         inflex = True
@@ -1342,20 +1368,9 @@ def inflex_search(rho1,f1):
         dens.append(dP_min)
         dens.append(inflex)
         dens.append(inflex2)
-    if dP_min<0:                   #T<Tc
+    if abs(dP_min)>tolI:                   #T<Tc or T>Tc
         inflex = False
         inflex2 = False
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        dens.append(dP_min)
-        dens.append(inflex)
-        dens.append(inflex2)
-    if dP_min>1e-5:                #T>Tc
-        inflex = False
-        inflex2 = True
         dens.append(0)
         dens.append(0)
         dens.append(0)
@@ -1525,15 +1540,16 @@ def PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     step = 1.0
     flag0 = False
     flagI = False
+    tol = 1e-8
     
     print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while flagI==False:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
-        ans = inflex_search(ren[2],ren[0])
+        ans = inflex_search(ren[2],ren[0],1e-10)
         Fobj = ans[5]
         flagI = ans[6]
 
-        print T,ans[0],ans[1],ans[2],ans[5],ans[6]
+        #print T,ans[0],ans[1],ans[2],ans[5],ans[6],i
 
         if Fobj>1e-5:
             step = -1e0
@@ -1548,7 +1564,9 @@ def PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
             step = 1e-1
         if Fobj<-1e-10 and Fobj>=-1e-7:
             step = 1e-2
-
+        step = -4e4*ans[5]
+        #if abs(ans[5])<1e-10:
+        #    step = -3e6*ans[5]
         T = T + step
         i = i+1
     
@@ -1557,10 +1575,10 @@ def PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
         report_crit(T-step,ans[2],ans[0],IDs,L__est,phi__est,crit_exp[0])
     else:
         report_crit(T-step,ans[2],ans[0],IDs,0,0,0)
-    env.append(Tv)
-    env.append(rhov)
-    env.append(rhol)
-    env.append(Pv)
+    env.append(T-step)
+    env.append(ans[0])
+    env.append(ans[0])
+    env.append(ans[2])
     if estimate_bool==True:
         env.append(crit_exp[0])
     else:
@@ -1977,7 +1995,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             print '\nCalculating renormalized helmholtz energy surface'
             nd = 500
             nx = 200
-            n = 8
+            n = 5
             r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
