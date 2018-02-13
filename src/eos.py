@@ -139,15 +139,40 @@ def alfa_calc(IDs,EoS,T):
             kapa = 0.48508+1.55171*omega-0.15613*omega*omega
     elif EoS==3 or EoS==4: #PR, PR+RG
         if omega[0]<0.2:
-            kapa = 0.37640+1.54230*omega-0.26990*omega*omega
+            #kapa = 0.37640+1.54230*omega-0.26990*omega*omega
+            kapa = 0.37464+1.54226*omega-0.26992*omega*omega
         else:
-            kapa = 0.3796+(1.4850+(-0.1644+0.01667*omega)*omega)*omega
+            kapa = 0.37464+1.54226*omega-0.26992*omega*omega
+            #kapa = 0.3796+(1.4850+(-0.1644+0.01667*omega)*omega)*omega
     else: #CPA, CPA+RG
         kapa = np.array(data.c1(IDs))
         
     alfa = (1.0+kapa*(1.0-(Tr**0.5)))**2
     
     return alfa
+#=============================================================
+
+#Calculates kapa parameter------------------------------------
+def kapa_calc(IDs,EoS):
+    omega = np.array(data.omega(IDs))
+    
+    #Calculate kapa
+    if EoS==1 or EoS==2: #SRK, SRK+RG
+        if omega[0]<0.2:
+            kapa = 0.48508+1.55171*omega-0.15613*omega*omega
+        else:
+            kapa = 0.48508+1.55171*omega-0.15613*omega*omega
+    elif EoS==3 or EoS==4: #PR, PR+RG
+        if omega[0]<0.2:
+            #kapa = 0.37640+1.54230*omega-0.26990*omega*omega
+            kapa = 0.37464+1.54226*omega-0.26992*omega*omega
+        else:
+            kapa = 0.37464+1.54226*omega-0.26992*omega*omega
+            #kapa = 0.3796+(1.4850+(-0.1644+0.01667*omega)*omega)*omega
+    else: #CPA, CPA+RG
+        kapa = np.array(data.c1(IDs))
+    
+    return kapa
 #=============================================================
 
 #Cubic, calculates alfa prime parameter-----------------------

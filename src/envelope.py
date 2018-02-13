@@ -651,7 +651,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     
     #Definitions--------------------------------------------------
     #Main iteration conditions
-    x = np.array([0.01,0.99]) #x array
+    x = np.array([0.001,0.999]) #x array
     xf = 0.995                    #Main stop condition
     stepx = 5e-3                #Main step
     it = 0                      #Iteration counter
@@ -680,7 +680,8 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     print Psat,x,P,y
     Vv = R*T/P #Not going to be used, just starting
     Vl = 0.99  #Not going to be used, just starting
-    P = P/10
+    P = P/100
+    print 'P=',P
     #=============================================================
     
     #Main iteration start, range x1------------------------------------------
@@ -1549,7 +1550,7 @@ def PV_findTc2_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
         Fobj = ans[5]
         flagI = ans[6]
 
-        #print T,ans[0],ans[1],ans[2],ans[5],ans[6],i
+        print T,ans[0],ans[1],ans[2],ans[5],ans[6],i
 
         if Fobj>1e-5:
             step = -1e0
@@ -1754,6 +1755,10 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
     fres1 = []
     fres2 = []
     
+    f0 = []
+    f1 = []
+    f2 = []
+    
     P0 = []
     P1 = []
     P2 = []
@@ -1766,60 +1771,97 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
     T1 = []
     T2 = []
     
-    h = 1e-2
+    h = 5e-2
 
     step = 1.0
     finalT = T
     
-    print 'T:   dens_vap:   dens_liq:   P:'
-    while T<=finalT:
+    if EoS==2 or EoS==4 or EoS==6:
+        #print 'T:   dens_vap:   dens_liq:   P:'
+        while T<=finalT:
 
-        T0.append(T-T*h)
-        T1.append(T)
-        T2.append(T+T*h)
+            T0.append(T-T*h)
+            T1.append(T)
+            T2.append(T+T*h)
         
-        ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
-        fres1.append(ren[7])
-        rho1.append(ren[2])
-        P1.append(ren[8])
-        #print 'central',T,dens[0],dens[1],dens[2],Fobj
+            ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            fres1.append(ren[7])
+            rho1.append(ren[2])
+            P1.append(ren[8])
+            f1.append(ren[0])
+            #print 'central',T,dens[0],dens[1],dens[2],Fobj
 
-        ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
-        fres2.append(ren[7])
-        rho2.append(ren[2])
-        P2.append(ren[8])
-        #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
+            ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            fres2.append(ren[7])
+            rho2.append(ren[2])
+            P2.append(ren[8])
+            f2.append(ren[0])
+            #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
 
-        ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
-        fres0.append(ren[7])
-        rho0.append(ren[2])
-        P0.append(ren[8])
-        #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
+            ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            fres0.append(ren[7])
+            rho0.append(ren[2])
+            P0.append(ren[8])
+            f0.append(ren[0])
+            #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
 
-        T = T+step
+            T = T+step
     
-    T_list = []
-    fres_list = []
-    P_list = []
-    rho_list = []
+        T_list = []
+        fres_list = []
+        P_list = []
+        rho_list = []
+        f_list = []
     
-    T_list.append(T0)
-    T_list.append(T1)
-    T_list.append(T2)
+        T_list.append(T0)
+        T_list.append(T1)
+        T_list.append(T2)
     
-    fres_list.append(fres0)
-    fres_list.append(fres1)
-    fres_list.append(fres2)
+        fres_list.append(fres0)
+        fres_list.append(fres1)
+        fres_list.append(fres2)
+        
+        f_list.append(f0)
+        f_list.append(f1)
+        f_list.append(f2)
     
-    P_list.append(P0)
-    P_list.append(P1)
-    P_list.append(P2)
+        P_list.append(P0)
+        P_list.append(P1)
+        P_list.append(P2)
     
-    rho_list.append(rho0)
-    rho_list.append(rho1)
-    rho_list.append(rho2)
+        rho_list.append(rho0)
+        rho_list.append(rho1)
+        rho_list.append(rho2)
     
-    der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,fres_list,P_list,rho_list,h,IDs)
+        der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,f_list,P_list,rho_list,T*h,IDs)
+        
+    else:
+        n = 500
+        b = eos.b_calc(IDs,EoS)
+        x = np.array([0.999,0.001])
+        bmix = eos.bmix_calc(MR,b,x)
+        a = eos.a_calc(IDs,EoS,T)
+        amix = eos.amix_calc(MR,a,x,kij)
+        V = np.empty((n))
+        rho = np.empty((n))
+        for i in range(0,n):
+            rho[i] = np.array(float(i)/n/bmix)
+        rho[0] = 1e-8
+        V = 1/rho
+        f = rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2))))
+        A = f*V
+        
+        print T,R,bmix,amix
+        
+        #rho = np.array(menus.flatten(rho))
+        #f = np.array(menus.flatten(f))
+        
+        fspl = splrep(rho,f,k=3)
+        u = splev(rho,fspl,der=1)
+        
+        P = -f+rho*u
+        
+        der_prop = derivativeprop.calc_isothermal_dev_prop_pure_analytical(T,A,P,V,IDs,EoS,MR,kij)
     
     return der_prop
 #====================================================================================== 
@@ -1934,7 +1976,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
     if env_type==5:
         #Calculate pure PV derivative properties*****************************************************
-        nd = 400
+        nd = 500
         nx = 200
         n = 5
         stepT = 0.5
@@ -1964,16 +2006,16 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         nd = 400
         nx = 200
         n = 8
-        finalT = 700.0
-        stepT = 2.5
+        finalT = 520.0
+        stepT = 5.0
         print '\nCalculating PV envelope'
         if env_type==2:
             env_PV = PV_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            #env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
-            env_PV = PV_findTc2_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+            #env_PV = PV_findTc2_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         print 'PV envelope calculated'
 
         print 'Creating pure PV report'
@@ -2025,12 +2067,17 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             nd = 40
             nx = 40
             n = 5
-            r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            #r_data = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
             print '\nHelmholtz Energy Surface calculated and reported'
         else:
+            nd = 40
+            nx = 40
+            n = 5
             r_data = []
-
-        critical.sadus_hicks_young(r_data[4],r_data[3],r_data[1],r_data[9])
+        
+        x = np.array([0.1,0.9])
+        renormalization.crit_mix(False,0,0,EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,x)
+        #critical.sadus_hicks_young(r_data[4],r_data[3],r_data[1],r_data[9])
         #*******************************************************************************
 
     if env_type==8 or env_type==9 or env_type==10:

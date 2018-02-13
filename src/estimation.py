@@ -297,7 +297,7 @@ def objFunc_dens_Psat_Tc(par,argss):
     Fobj_Tc = abs((Tc_calc-Tc_exp)/Tc_exp)
     Fobj_Pc = abs((Pc_calc-Pc_exp)/Pc_exp)
     Fobj_rhoc    = abs((rhoc_calc-rhoc_exp)/rhoc_exp)
-    Fobj      = Fobj_Tc + Fobj_Pc + Fobj_rhoc
+    Fobj      = 10*Fobj_Tc + 10*Fobj_Pc + 10*Fobj_rhoc
     
     print '--------------------------------'
     print 'Parameters:',L__est,phi__est
@@ -633,10 +633,10 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #Create boundaries
     bmax = np.empty((2))
     bmin = np.empty((2))
-    bmin[0] = 1E-10
-    bmax[0] = 10E-10
-    bmin[1] = 0.10
-    bmax[1] = 10.00
+    bmin[0] = 5.20E-10
+    bmax[0] = 5.90E-10
+    bmin[1] = 1.00
+    bmax[1] = 2.30
     
     #Organize Parameters
     #Organize Parameters
@@ -668,23 +668,23 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
             #p[i][1] = 1.0
     
-    #p[0][0] = 7.207e-10
-    #p[0][1] = 0.60
+    p[0][0] = 5.5e-10
+    p[0][1] = 1.70
     
     print 'particles'
     print p
     
     #Initialize PSO method - ALL PARAMETERS
-    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
-    best_param = best[0]
-    param_list = best[1]
-    param_Fobj = best[2]
-    
-    #Initialize PSO method to fit parameter 1 (L)
-    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_Tc,argss,p,bmin,bmax)
+    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
     #best_param = best[0]
     #param_list = best[1]
     #param_Fobj = best[2]
+    
+    #Initialize PSO method to fit parameter 1 (L)
+    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_Tc,argss,p,bmin,bmax)
+    best_param = best[0]
+    param_list = best[1]
+    param_Fobj = best[2]
 
     #Initialize PSO method to fit parameter 2 (phi)
     #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)

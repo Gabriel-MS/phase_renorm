@@ -113,9 +113,9 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             k = k+1
             
         f_orig = f                                #Initial helmholtz energy density
+    
         #Subtract attractive forces (due long range correlations)
         f = f + 0.5*amix*(rho**2)
-
 
         #Adimensionalization
         rho = rho*bmix
@@ -158,7 +158,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         f = f - 0.5*amix*(rho**2)
         
         #Store residual value of f
-        fres = f - rho*R*T*(np.log(rho)-1)
+        #fres = f - rho*R*T*(np.log(rho)-1) #WRONG
+        fres = f - rho*R*T*np.log(rho)
         #f = f + rho*R*T*(np.log(rho)-1) #Already accounting ideal gas energy
 
         #if(EoS==6):
@@ -179,6 +180,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             u[i] = (f[i+1]-f[i-1])/(2*drho)
         u[nd-1] = (f[nd-1]-f[nd-2])/drho
         u[0] = (f[1]-f[0])/drho
+        
+        fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+        f = splev(rho,fspl,der=0)
+        u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
 
         P = -f+rho*u
         Pv.append(P)
@@ -428,6 +433,12 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         #print rho
         #print Pvec
         #print Pfvec
+        
+        #NEW
+        P_fvec_spl = splrep(rho,Pfvec,k=3)         #Cubic Spline Representation
+        Pfvec = splev(rho,P_fvec_spl,der=0)
+        #NEW
+        
         #plt.plot(rho,Pvec)
         #plt.ylim(-15,15)
         #plt.show()
@@ -435,7 +446,7 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         min1 = int(0.90*nd) #it was 0.90 before
         max2 = max1+2
         min2 = min1-2
-        #print rho[max1],rho[max2],max1,max2,min1,min2
+        print rho[max1],rho[max2],max1,max2,min1,min2
         #raw_input('before')
         while Pfvec[max1]*Pfvec[max2]>0:# and max2<len(Pfvec):
             #max2 = max2+int(nd/200)
@@ -458,7 +469,9 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         #min1 = min2+int(nd/100)
         min1 = min2+4
 
+        #print 'int',Pint,xint,phase
         #print 'falsi_spline',rho[max1],rho[max2],rho[min1],rho[min2]
+        #print 'falsi_pressures',Pfvec[max1],Pfvec[max2],Pfvec[min1],Pfvec[min2]
         #Calculate coexistence densities in interpolated isotherm for given P
         rho_vap = numerical.falsi_spline(rho, Pfvec, rho[max1], rho[max2], 1e-5)
         #print 'rho_vap',rho_vap
@@ -506,10 +519,14 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
         f_CPA = np.dot(np.dot(one4c,x),f_CPA1)
 
     #Considering ideal gas energy contribution
+    V = 1/rho
     f = {
         2: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix), #SRK+RG
         #2: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #SRK+RG
-        4: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix), #PR+RG
+        #4: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix), #PR+RG
+        #4: -rho*(R*T*np.log(V-bmix)-(amix/(2*np.sqrt(2)*bmix)*(np.log(1-(V+bmix)/np.sqrt(2)/bmix)-np.log(1+(V+bmix)/np.sqrt(2)/bmix)))), #PR+RG
+        4: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2)))), #PR+RG
+        #4: rho*R*T*np.log(rho)+rho*R*T*np.log(1-amix*(V-bmix)/(R*T*(V**2+2*bmix*V-bmix**2)))+rho*amix/(2*np.sqrt(2)*bmix)*np.log((V+(1-np.sqrt(2)*bmix))/(V+(1+np.sqrt(2)*bmix))), #PR+RG
         #4: -rho*R*T*np.log(1-rho*bmix)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*(np.log(rho)-1), #PR+RG
         #6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
         6: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
@@ -1070,3 +1087,167 @@ def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     par = 1
     return par
 #====================================================================================== 
+
+#Calculates critical point for given mixture composition-------------------------------
+def crit_mix(estimate_crit,Tci,rhoci,EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,x):
+
+    #Initial estimate of critical point
+    if estimate_crit==True:
+        Tci = Tci
+        Vci = rhoci
+    else:
+        Tcvec = data.Tc(IDs)
+        Tci = 1.5*np.dot(x,Tcvec)
+        b = eos.b_calc(IDs,EoS)
+        bmix = eos.bmix_calc(MR,b,x)
+        Vci = 4*bmix
+    Tc = Tci
+    P = 0.1
+    
+    print 'Initial Estimates:','Tc=',Tci,'Vci=',Vci
+    raw_input('...')
+        
+    #Solve det(Q)=0 for initial condition
+    nt = 1.0 #Total number of moles   
+    delta = np.identity(nc) #Kronecker delta
+    
+    #Calculate thermodynamic properties at initial T
+    nx = 4 #Renorm will calculate only given x
+    nd = 400
+    
+    h = 1e-4
+    x0 = np.array([0.1,0.9])
+    nt = np.sum(x0)
+    n0 = nt*x0
+    
+    tolC = 1e-20
+    tolQ = 1e-20
+    C = tolC+1
+    detQ = tolQ+1
+    Q = np.zeros((nc,nc))
+    n1 = np.zeros((nc))
+    n1 = n0
+    
+    r_dat0 = 1
+    r_dat1 = 1
+    
+    
+    #External V loop - solve triple sum = 0
+    while C>tolC:
+        #Internal T loop - solve det(Q)=0------------------------------------------------------------------------------------
+        while detQ>tolQ:
+            
+            dT = 1e-5*Tc
+            
+            #Q at T
+            Q = np.zeros((nc,nc))
+            if EoS==2 or EoS==4 or EoS==6:
+                r_dat0 = renorm(EoS,IDs,MR,Tc,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)    
+            lnfugcoef0 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc,x0,kij, 1,Vci,en_auto,beta_auto,CR,SM,0,0,r_dat0)[0] #vapor
+            for j in range(0,nc):
+                n1[j] = n0[j]+h
+                x1 = n1/(nt+h)
+                if EoS==2 or EoS==4 or EoS==6:
+                    r_dat1 = renorm(EoS,IDs,MR,Tc,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+                lnfugcoef1 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc,x1,kij, 1,Vci,en_auto,beta_auto,CR,SM,0,0,r_dat1)[0] #vapor
+                print lnfugcoef1,x1
+                for i in range(0,nc):
+                    Q[i][j] = (lnfugcoef1[i]-lnfugcoef0[i])/h
+                n1 = n0
+                x1 = x0
+            detQ = np.linalg.det(Q)
+            print 'lnfug0',lnfugcoef0,x0
+            print 'lnfug1',lnfugcoef1,x1
+            print 'detQ=',detQ
+            print 'Q=',Q
+            raw_input('...')
+            
+            #Q at T+dT
+            Q = np.zeros((nc,nc))
+            if EoS==2 or EoS==4 or EoS==6:
+                r_dat0 = renorm(EoS,IDs,MR,Tc+dT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            lnfugcoef0 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc+dT,x0,kij, 1,Vci,en_auto,beta_auto,CR,SM,0,0,r_dat0)[0] #vapor
+            for j in range(0,nc):
+                n1[j] = n0[j]+h
+                x1 = n1/(nt+h)
+                if EoS==2 or EoS==4 or EoS==6:
+                    r_dat1 = renorm(EoS,IDs,MR,Tc+dT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+                lnfugcoef1 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc+dT,x1,kij, 1,Vci,en_auto,beta_auto,CR,SM,0,0,r_dat1)[0] #vapor
+                for i in range(0,nc):
+                    Q[i][j] = (lnfugcoef1[i]-lnfugcoef0[i])/h
+                n1 = n0
+            detQ_dT = np.linalg.det(Q)
+            
+            dF = (detQ_dT-detQ)/(dT*Tc)
+            Tc = Tc - detQ/dF
+            print 'Tc=',Tc
+            #End Internal T loop - solve det(Q)=0===============================================================================
+            
+        nt = 1.0
+        nt0 = 1.0
+        n0 = x0*nt0
+        dn = 1.0
+        """
+        n1k = np.zeros((4))
+        nt1k = np.zeros((4))
+        x1k = np.zeros((4))
+        k = -2
+        for i in range(0,4)
+            n1k[i] = (x0+k*1e-3*dn/nt0)*nt0
+            nt1k[i] = np.sum(n1)
+            x1k[i] = n1/nt1
+            k = k+1
+        """
+        
+        dV = 1e-6*Vci
+            
+        #C at V
+        C = 0
+        if EoS==2 or EoS==4 or EoS==6:
+            r_dat0 = renorm(EoS,IDs,MR,Tc,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+        lnfugcoef0 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc,x0,kij, 1,Vci,en_auto,beta_auto,CR,SM,0,0,r_dat0)[0] #vapor
+        for j in range(0,nc):
+            eps = 1e-3
+            n1[j] = (x0[j]+eps*dn/nt)*nt
+            nt1 = np.sum(n1)
+            x1 = n1/nt1
+            if EoS==2 or EoS==4 or EoS==6:
+                r_dat1 = renorm(EoS,IDs,MR,Tc,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            lnfugcoef1 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc,x1,kij, 1,Vci,en_auto,beta_auto,CR,SM,0,0,r_dat1)[0] #vapor
+            for i in range(0,nc):
+                Q[i][j] = (lnfugcoef1[i]-lnfugcoef0[i])/eps
+                C = C + Q[i][j]*n1[j]*n1[j]
+            n1 = n0
+        
+        #C at T+dV
+        C_dV = 0
+        if EoS==2 or EoS==4 or EoS==6:
+            r_dat0 = renorm(EoS,IDs,MR,Tc,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+        lnfugcoef0 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc,x0,kij, 1,Vci+dV,en_auto,beta_auto,CR,SM,0,0,r_dat0)[0] #vapor
+        for j in range(0,nc):
+            eps = 1e-3
+            n1[j] = (x0[j]+eps*dn/nt)*nt
+            nt1 = np.sum(n1)
+            x1 = n1/nt1
+            if EoS==2 or EoS==4 or EoS==6:
+                r_dat1 = renorm(EoS,IDs,MR,Tc,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            lnfugcoef1 = eos.lnfugcoef_func(IDs,EoS,MR,P,Tc,x1,kij, 1,Vci+dV,en_auto,beta_auto,CR,SM,0,0,r_dat1)[0] #vapor
+            for i in range(0,nc):
+                Q[i][j] = (lnfugcoef1[i]-lnfugcoef0[i])/eps
+                C_dV = C_dV + Q[i][j]*n1[j]*n1[j]
+            n1 = n0
+        
+        dF = (C_dV-C)/(dV*Vci)
+        Vci = Vci - Vci/dF
+    
+    #Solve det(Q)=0 to find Tc and rhoc
+        
+    print Tc
+    print Vci
+    rhoc = 1/Vci
+    crit = []
+    crit.append(Tc)
+    #crit.append(Pc)
+    crit.append(rhoc)
+    return crit
+#======================================================================================

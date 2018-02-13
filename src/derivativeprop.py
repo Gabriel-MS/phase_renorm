@@ -2,6 +2,7 @@ import numpy as np
 import menus
 import correlations
 import data
+import eos
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -44,7 +45,7 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h,IDs):
     
     #Derivatives
     d2AdT2 = (A2 - 2*A1 + A0)/(h**2)
-    d2FdT2 = (F2 - 2*F1 + A0)/(h**2)
+    d2FdT2 = (F2 - 2*F1 + F0)/(h**2)
     
     dAdT = (A2 - A0)/(2*h)
     dFdT = (F2 - F0)/(2*h)
@@ -94,6 +95,7 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h,IDs):
     Cv = -T1*d2AdT2
     #Cv = -R*T1*T1*d2FdT2-2*R*T1*dFdT
     Cv = Cv[0]
+    print T1
     
     #Isothermal compression coefficient
     inv_kT = rhov*dPdrho
@@ -116,11 +118,14 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h,IDs):
     #Speed of Sound
     Mw = data.mass(IDs)[0]
     Cp_ig = correlations.ideal_cp(IDs,T1[0])
-    Cp1 = Cp*R + Cp_ig
+    Cp1 = Cp + Cp_ig
     Cv_ig = Cp_ig - R
-    Cv1 = Cv*R + Cv_ig
+    Cv1 = Cv + Cv_ig
     w = (Cp1/Cv1*dPdrho/Mw*1e6)**(0.5)
     #w = (-(Vv**2)*Cp/Cv*dPdV/Mw)**(0.5)
+    
+    #for i in range(0,len(f1[0])):
+    #    print rho1[0][i],f1[0][i],'wow'
     
     deriv_data = []
     deriv_data.append(Pv)
@@ -129,16 +134,84 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h,IDs):
     deriv_data.append(dAdT[0])
     deriv_data.append(Cv)
     deriv_data.append(dPdrho)
-    deriv_data.append(inv_kT)
-    deriv_data.append(kT)
-    deriv_data.append(lnkT)
+    deriv_data.append(inv_kT) #inv_kT
+    deriv_data.append(kT) #kT
+    deriv_data.append(lnkT) #lnkT
     deriv_data.append(dPdT[0])
     deriv_data.append(alfa)
     deriv_data.append(uJT)
     deriv_data.append(Cp)
-    deriv_data.append(w)
-    deriv_data.append(Cp1)
-    deriv_data.append(Cv1)
+    deriv_data.append(w) #w
+    deriv_data.append(Cp1) #Cp1
+    deriv_data.append(Cv1) #Cv1
+    
+    return deriv_data
+#==================================================================================================
+
+#Function to calculate derivative properties of pure compounds after renormalization--------------- 
+def calc_isothermal_dev_prop_pure_analytical(T,A,P,V,IDs,EoS,MR,kij):
+    
+    b = eos.b_calc(IDs,EoS)
+    x = np.array([0.999,0.001])
+    bmix = eos.bmix_calc(MR,b,x)
+    a = eos.a_calc(IDs,EoS,T)
+    amix = eos.amix_calc(MR,a,x,kij)
+    ac = eos.ac_calc(IDs,EoS,T)[0]
+    m = eos.kapa_calc(IDs,EoS)[0]
+    Tc = np.array(data.Tc(IDs))[0]
+    rho = 1/V
+    
+    d2adT2 = ac*m*(1+m)*np.sqrt(Tc/T)/(2*T*Tc)
+    B = bmix*P/(R*T)
+    Z = P*V/(R*T)
+    
+    f = A/V
+    
+    noll = np.ones((len(V)))
+    
+    Cv_res = (T*d2adT2/(bmix*np.sqrt(8)))*np.log((Z+B*(1+np.sqrt(2)))/(Z+B*(1-np.sqrt(2))))
+    
+    d2AdT2 = -d2adT2/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2))))
+    
+    h = 5e-2
+    T_p = T+T*h
+    T_m = T-T*h
+    
+    a_p = eos.a_calc(IDs,EoS,T_p)
+    amix_p = eos.amix_calc(MR,a_p,x,kij)
+
+    a_m = eos.a_calc(IDs,EoS,T_m)
+    amix_m = eos.amix_calc(MR,a_m,x,kij)
+    
+    A = R*T*np.log(rho/(1-rho*bmix))-amix/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2))))
+    A_p = R*T_p*np.log(rho/(1-rho*bmix))-amix_p/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2))))
+    A_m = R*T_m*np.log(rho/(1-rho*bmix))-amix_m/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2))))
+        
+    d2AdT2_2 = (A_p-2*A+A_m)/((T*h)**2)
+    
+    A = A*1e8
+    A_p = A_p*1e8
+    A_m = A_m*1e8
+    d2AdT2 = d2AdT2*1e6
+    d2AdT2_2 = d2AdT2_2*1e6
+    
+    deriv_data = []
+    deriv_data.append(P)
+    deriv_data.append(rho)
+    deriv_data.append(A)
+    deriv_data.append(A_p)
+    deriv_data.append(Cv_res)
+    deriv_data.append(A_m)
+    deriv_data.append(d2AdT2_2) 
+    deriv_data.append(d2AdT2)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
+    deriv_data.append(noll)
     
     return deriv_data
 #==================================================================================================
