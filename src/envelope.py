@@ -1749,7 +1749,7 @@ def PV_estimate_Tc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
 #====================================================================================== 
 
 #Given initial T, using renormalization method, calculate derivative properties--------
-def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n):
+def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,dtype):
     
     fres0 = []
     fres1 = []
@@ -1833,7 +1833,10 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
         rho_list.append(rho1)
         rho_list.append(rho2)
     
-        der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,f_list,P_list,rho_list,T*h,IDs)
+        if dtype==1: #Isothermal
+            der_prop = derivativeprop.calc_isothermal_dev_prop_pure(T_list,f_list,P_list,rho_list,T*h,IDs)
+        if dtype==2: #isobaric
+            der_prop = derivativeprop.calc_isobaric_dev_prop_pure(T_list,f_list,P_list,rho_list,T*h,IDs,P)
         
     else:
         n = 500
@@ -1936,6 +1939,14 @@ def report_param(data,filename):
         df_a.to_csv(f,index=False,header=False,index_label=False,sep=';')
 #======================================================================================
 
+#Report estimation history-------------------------------------------------------------
+def report_df(data,filename):
+    df_a = pd.DataFrame(data)
+    df = pd.read_csv(filename,sep=';')
+    with open(filename, 'a') as f:
+        df_a.to_csv(f,index=False,header=False,index_label=False,sep=';')
+#======================================================================================
+
 #Define and handle which envelope to calculate-----------------------------------------
 def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_auto,beta_auto,SM,env_type):
     
@@ -1978,11 +1989,12 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         #Calculate pure PV derivative properties*****************************************************
         nd = 500
         nx = 200
-        n = 5
+        n = 8
         stepT = 0.5
         finalT = T
         print '\nCalculating pure isothermal derivative properties'
-        dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
+        dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,1) #Isothermal
+        #dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,2) #Isobaric
         print 'pure isothermal derivative properties calculated'
 
         print 'Creating pure isothermal derivative properties report'
@@ -2006,8 +2018,8 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         nd = 400
         nx = 200
         n = 8
-        finalT = 520.0
-        stepT = 5.0
+        finalT = 540.0
+        stepT = 2.5
         print '\nCalculating PV envelope'
         if env_type==2:
             env_PV = PV_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)

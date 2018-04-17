@@ -149,6 +149,158 @@ def calc_isothermal_dev_prop_pure(T,f,P,rho,h,IDs):
 #==================================================================================================
 
 #Function to calculate derivative properties of pure compounds after renormalization--------------- 
+def calc_isobaric_dev_prop_pure(T,f,P,rho,h,IDs,Pint):
+    
+    f0 = np.array(menus.flatten(f[0]))
+    f1 = np.array(menus.flatten(f[1]))
+    f2 = np.array(menus.flatten(f[2]))
+    
+    T0 = np.array(menus.flatten(T[0]))
+    T1 = np.array(menus.flatten(T[1]))
+    T2 = np.array(menus.flatten(T[2]))
+    
+    rho0 = np.array(menus.flatten(rho[0]))
+    rho1 = np.array(menus.flatten(rho[1]))
+    rho2 = np.array(menus.flatten(rho[2]))
+    
+    P0 = np.array(menus.flatten(P[0]))
+    P1 = np.array(menus.flatten(P[1]))
+    P2 = np.array(menus.flatten(P[2]))
+    
+    V0 = 1/rho0
+    V1 = 1/rho1
+    V2 = 1/rho2
+    
+    A0 = f0/rho0
+    A1 = f1/rho1
+    A2 = f2/rho2
+
+    F0 = A0/(R*T0)
+    F1 = A1/(R*T1)
+    F2 = A2/(R*T2)
+    
+    n = len(P1[0])
+    
+    #Derivatives
+    d2AdT2 = (A2 - 2*A1 + A0)/(h**2)
+    d2FdT2 = (F2 - 2*F1 + F0)/(h**2)
+    
+    dAdT = (A2 - A0)/(2*h)
+    dFdT = (F2 - F0)/(2*h)
+
+    Pv = P1[0]
+    rhov = rho1[0]
+    Vv = V1[0]
+    Fv = F1[0]
+
+    dPdrho = np.empty((n))
+    for i in range(1,n-1):
+        dPdrho[i] = (Pv[i+1]-Pv[i-1])/(rhov[i+1]-rhov[i-1])
+    dPdrho[0] = (Pv[1]-Pv[0])/(rhov[1]-rhov[0])
+    dPdrho[n-1] = (Pv[n-1]-Pv[n-2])/(rhov[n-1]-rhov[n-2])
+
+    dPdV = np.empty((n))
+    for i in range(1,n-1):
+        dPdV[i] = (Pv[i+1]-Pv[i-1])/(Vv[i+1]-Vv[i-1])
+    dPdV[0] = (Pv[1]-Pv[0])/(Vv[1]-Vv[0])
+    dPdV[n-1] = (Pv[n-1]-Pv[n-2])/(Vv[n-1]-Vv[n-2])
+
+    d2PdV2 = np.empty((n))
+    for i in range(1,n-1):
+        d2PdV2[i] = (Pv[i+1]+2*Pv[i]-Pv[i-1])/(Vv[i+1]-Vv[i-1])
+    d2PdV2[0] = (Pv[1]-Pv[0])/((Vv[1]-Vv[0])**2)
+    d2PdV2[n-1] = (Pv[n-1]-Pv[n-2])/((Vv[n-1]-Vv[n-2])**2)
+
+    d2FdV2 = np.empty((n))
+    for i in range(1,n-1):
+        d2FdV2[i] = (Fv[i+1]+2*Fv[i]-Fv[i-1])/(Vv[i+1]-Vv[i-1])
+    d2FdV2[0] = (Fv[1]-Fv[0])/((Vv[1]-Vv[0])**2)
+    d2FdV2[n-1] = (Fv[n-1]-Fv[n-2])/((Vv[n-1]-Vv[n-2])**2)
+
+    #d2FdTV = np.empty((n))
+    #for i in range(1,n-1):
+    #    d2FdTV[i] = (dFdT[i+1]-dFdT[i-1])/(Vv[i+1]-Vv[i-1])
+    #d2FdTV[0] = (dFdT[1]-dFdT[0])/(Vv[1]-Vv[0])
+    #d2FdTV[n-1] = (dFdT[n-1]-dFdT[n-2])/(Vv[n-1]-Vv[n-2])
+
+    d2PdT2 = (P2 - 2*P1 + P0)/(h**2)
+    dPdT = (P2 - P0)/(2*h)
+
+    #dPdV = -R*T*d2FdV2-R*T/(Vv**2)
+    #dPdT = -R*T*d2FdTV+Pv/T1[0]
+
+    #Isochoric Heat Capacity
+    Cv = -T1*d2AdT2
+    #Cv = -R*T1*T1*d2FdT2-2*R*T1*dFdT
+    Cv = Cv[0]
+    print T1
+    
+    #Isothermal compression coefficient
+    inv_kT = rhov*dPdrho
+    kT = 1/inv_kT
+    lnkT = np.log(kT)
+    
+    #Thermal Expansion coefficient
+    dPdT = (P2 - P0)/(2*h)
+    alfa = kT*dPdT
+    alfa = alfa[0]
+    
+    #Joule-Thomson coefficient
+    uJT = T1[0]*dPdT-rhov*dPdrho
+    uJT = uJT[0]
+    
+    #Isobaric Heat Capacity
+    Cp = Cv + T1[0]*(alfa**2)/kT/rhov
+    #Cp = Cv - T1[0]*(dPdT[0]**2)/dPdV-R
+
+    #Speed of Sound
+    Mw = data.mass(IDs)[0]
+    Cp_ig = correlations.ideal_cp(IDs,T1[0])
+    Cp1 = Cp + Cp_ig
+    Cv_ig = Cp_ig - R
+    Cv1 = Cv + Cv_ig
+    w = (Cp1/Cv1*dPdrho/Mw*1e6)**(0.5)
+    #w = (-(Vv**2)*Cp/Cv*dPdV/Mw)**(0.5)
+    
+    #for i in range(0,len(f1[0])):
+    #    print rho1[0][i],f1[0][i],'wow']
+    
+    #Interpolate
+    Pvint = Pv - Pint
+    Pspl = splrep(rhov,Pvint,k=3)
+    Pvint = splev(rhov,Pspl,der=0)
+    
+    i = len(Pvint)-1
+    while Pvint[i]>0:
+        i = i-1
+    rho_int = rhov[i]
+    
+    
+    min_d2P = numerical.bisect_spline(rho,d2Pdrho2,rho[n/10],rho[len(rho)-n/10],1e-5,500)
+    dP_min = InterpolatedUnivariateSpline(rho,dPdrho,k=3)(min_d2P)
+    
+    deriv_data = []
+    deriv_data.append(Pv)
+    deriv_data.append(rhov)
+    deriv_data.append(d2AdT2[0])
+    deriv_data.append(dAdT[0])
+    deriv_data.append(Cv)
+    deriv_data.append(dPdrho)
+    deriv_data.append(inv_kT) #inv_kT
+    deriv_data.append(kT) #kT
+    deriv_data.append(lnkT) #lnkT
+    deriv_data.append(dPdT[0])
+    deriv_data.append(alfa)
+    deriv_data.append(uJT)
+    deriv_data.append(Cp)
+    deriv_data.append(w) #w
+    deriv_data.append(Cp1) #Cp1
+    deriv_data.append(Cv1) #Cv1
+    
+    return deriv_data
+#==================================================================================================
+
+#Function to calculate derivative properties of pure compounds after renormalization--------------- 
 def calc_isothermal_dev_prop_pure_analytical(T,A,P,V,IDs,EoS,MR,kij):
     
     b = eos.b_calc(IDs,EoS)

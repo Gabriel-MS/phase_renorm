@@ -42,7 +42,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
     Tr = T/np.array(Tc)
     
     #Main loop parameters
-    x = np.array([0.001,0.999])
+    x = np.array([0.0001,0.9999])
     stepx = (1/float(nx)) #Step to calculate change
     k = 0               #Vector fill counter
     i = 1               #Main loop counter
@@ -68,6 +68,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
     umat = []
     ures = np.empty((nd))
     uv = []
+    
+    df_vec = []
     
     if nc==1:
         X = np.ones((8))
@@ -116,6 +118,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
     
         #Subtract attractive forces (due long range correlations)
         f = f + 0.5*amix*(rho**2)
+        
+        df_vec.append(rho)
 
         #Adimensionalization
         rho = rho*bmix
@@ -145,6 +149,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             
             #Update Helmholtz Energy Density
             df = np.array(df)
+            df_vec.append(df)
             f = f + df
             #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix
             i = i+1
@@ -161,6 +166,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #fres = f - rho*R*T*(np.log(rho)-1) #WRONG
         fres = f - rho*R*T*np.log(rho)
         #f = f + rho*R*T*(np.log(rho)-1) #Already accounting ideal gas energy
+        
+        #envelope.report_df(df_vec,'df.csv')
 
         #if(EoS==6):
         #    f = fres
@@ -563,7 +570,7 @@ def helm_short(EoS,rho,f,phi,i):
     fshort = {
         2: f - f0a*phi/(2**(2*i)),      #SRK+RG
         4: f - f0a*phi/(2**(2*i)),      #PR+RG
-        6: f - f0a*phi/(2**(2*i+1)) #CPA+RG
+        6: f - f0a*phi/(2**(2*i)) #CPA+RG
         #6: f - f0a*phi/(2**(2*i)) #CPA+RG
     }.get(EoS,'NULL')
     

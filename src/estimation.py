@@ -228,6 +228,7 @@ def objFunc_dens_Psat_crit(par,argss):
         #if dens_vap_calc[i]<0.1:
         #    Fobj_dens_vap = 100.0
     Fobj      = Fobj_dens_liq + Fobj_dens_vap + 5*Fobj_P
+    Fobj      = Fobj_dens_liq + Fobj_P
 
     
     print '--------------------------------'
@@ -293,6 +294,78 @@ def objFunc_dens_Psat_Tc(par,argss):
     Tc_calc = Crit[0]
     Pc_calc = Crit[3]
     rhoc_calc = Crit[1]
+
+    Fobj_Tc = abs((Tc_calc-Tc_exp)/Tc_exp)
+    Fobj_Pc = abs((Pc_calc-Pc_exp)/Pc_exp)
+    Fobj_rhoc    = abs((rhoc_calc-rhoc_exp)/rhoc_exp)
+    Fobj      = 10*Fobj_Tc + 10*Fobj_Pc + 10*Fobj_rhoc
+    
+    print '--------------------------------'
+    print 'Parameters:',L__est,phi__est
+    print 'Critical Point:',Tc_calc,Pc_calc,rhoc_calc
+    print 'Critical deltas:',abs(Tc_calc-Tc_exp),abs(Pc_calc-Pc_exp),abs(rhoc_calc-rhoc_exp)
+    print 'Objective Function:',Fobj,Fobj_Tc,Fobj_Pc,Fobj_rhoc
+    print '--------------------------------\n'
+    
+    out = []
+    out.append(Fobj)
+    #out.append(Tc_calc)
+    #out.append(Pc_calc)
+    #out.append(rhoc_calc)
+    out.append(Fobj_Tc)
+    out.append(Fobj_Pc)
+    out.append(Fobj_rhoc)
+    return out
+#=========================================================================================
+
+#Calculate Objective function based on derivative properties------------------------------
+def objFunc_dens_deriv(par,argss):
+
+    #Parameters
+    EoS     = argss[0]
+    IDs     = argss[1]
+    MR     = argss[2]
+    T      = argss[3]
+    Tfinal  = argss[4]
+    stepT   = argss[5]
+    nd      = argss[6]
+    nx      = argss[7]
+    kij     = argss[8]
+    nc      = argss[9]
+    CR      = argss[10]
+    en_auto = argss[11]
+    beta_auto = argss[12]
+    SM      = argss[13]
+    n       = argss[14]
+    estimate_bool = argss[15]
+    crit_bool = argss[16]
+    expfile = argss[17]
+    AR      = argss[18]
+
+    #Particle parameters
+    L__est = par[0]
+    phi__est = par[1]
+
+    #Modify renormalization parameters
+    data.modify_renorm(IDs,par)
+    
+    #Recover Experimental data for critical point
+    T_exp    = data.loadexp3(expfile[0])[0] #Temperatures
+    Psat_exp = data.loadexp3(expfile[0])[1] #Saturated Vapor Pressure
+    dens_liq_exp = data.loadexp3(expfile[0])[2] #Liquid Saturated Density
+    
+    Tc_exp = T_exp[len(T_exp)-1]
+    Pc_exp = Psat_exp[len(Psat_exp)-1]
+    rhoc_exp = dens_liq_exp[len(dens_liq_exp)-1]
+    
+    #Calculates critical point
+    Crit = envelope.PV_findTc2_envelope(EoS,IDs,MR,Tc_exp,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+    Tc_calc = Crit[0]
+    Pc_calc = Crit[3]
+    rhoc_calc = Crit[1]
+    
+    #Calculates speed of sound at critical point
+    dp_dat = envelope.PV_deriv_calc_envelope(EoS,IDs,MR,Tc_exp,Tc_exp,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
 
     Fobj_Tc = abs((Tc_calc-Tc_exp)/Tc_exp)
     Fobj_Pc = abs((Pc_calc-Pc_exp)/Pc_exp)
@@ -633,10 +706,16 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #Create boundaries
     bmax = np.empty((2))
     bmin = np.empty((2))
-    bmin[0] = 5.20E-10
-    bmax[0] = 5.90E-10
-    bmin[1] = 1.00
-    bmax[1] = 2.30
+    bmin[0] = 1.00E-10
+    bmax[0] = 10.00E-10
+    bmin[1] = 0.01
+    bmax[1] = 15.00
+    
+    bounds = np.zeros((2,nparameter))
+    bounds[0][0] = bmin[0] #min x
+    bounds[0][1] = bmin[1] #min y
+    bounds[1][0] = bmax[0] #max x
+    bounds[1][1] = bmax[1] #max y
     
     #Organize Parameters
     #Organize Parameters
@@ -668,8 +747,8 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
             #p[i][1] = 1.0
     
-    p[0][0] = 5.5e-10
-    p[0][1] = 1.70
+    #p[0][0] = 5.45e-10
+    #p[0][1] = 1.50
     
     print 'particles'
     print p
@@ -680,11 +759,17 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #param_list = best[1]
     #param_Fobj = best[2]
     
-    #Initialize PSO method to fit parameter 1 (L)
-    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_Tc,argss,p,bmin,bmax)
+    #Initialize MDPSO
+    best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bounds)
     best_param = best[0]
     param_list = best[1]
     param_Fobj = best[2]
+    
+    #Initialize PSO method to fit parameter 1 (L)
+    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_Tc,argss,p,bmin,bmax)
+    #best_param = best[0]
+    #param_list = best[1]
+    #param_Fobj = best[2]
 
     #Initialize PSO method to fit parameter 2 (phi)
     #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
