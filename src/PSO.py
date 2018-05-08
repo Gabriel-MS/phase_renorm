@@ -5,7 +5,7 @@ import envelope
 import time
 
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 #Standard PSO routine-------------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import math
 
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pltt
 
 print 'PSO routine to find minimum of defined objective function'
 print '=========================================================\n'

@@ -14,7 +14,7 @@ from scipy import stats
 from scipy.linalg import inv
 
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 R = 8.314462175e-6 #m3.MPa/K/mol
@@ -89,12 +89,42 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #Mixture parameters
         bmix = eos.bmix_calc(MR,b,x)
         amix = eos.amix_calc(MR,a,x,kij)
+        Nav = 6.023e23
         rhomax = 0.999999
         
         #Mixture Renormalization parameters
         L = np.dot(x,np.power(L_rg,3.0))
         L = np.power(L,1.0/3.0)
         phi = np.dot(x,phi_rg)
+        
+        #print L
+        #print phi
+        
+        sig = np.power(b/Nav,1.0/3.0)[0]
+        L = 1.5*sig
+        PHI = 1.0
+        w = (9.0*sig/7.0)
+        phi = PHI*(w**2)/2/(L**2)
+        
+        om = data.omega(IDs)
+        phi = 2/np.power(np.exp(om),4)[0]
+        
+        print L
+        print phi
+        print '---------'
+        
+        #New parameters
+        #L = 1.5*np.power(b/Nav,1.0/3.0)
+        h = 6.626e-34
+        kkB = 1.38e-23
+        MM = 0.034
+        deBroglie = h/np.sqrt(3*kkB*T*MM/Nav)
+        print deBroglie
+        #phi = (deBroglie**2.0)/(L**2.0)*150*3.14
+        #L = L[0]
+        #phi = phi[0]
+        #print 'L=',L
+        #print 'phi=',phi
 
         if estimate==True:
             L = L_est

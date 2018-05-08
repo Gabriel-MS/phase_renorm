@@ -5,7 +5,7 @@ import data
 import eos
 
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 R = 8.314462175e-6 #m3.MPa/K/mol

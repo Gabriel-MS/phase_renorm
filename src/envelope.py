@@ -1,5 +1,8 @@
 #VLE algorithms to calculate and plot envelopes
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import scipy
 import data
 import menus
@@ -15,10 +18,6 @@ import PSO
 import time
 import estimation
 import pandas as pd
-
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -559,11 +558,11 @@ def PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns,en_auto,beta_auto,CR,SM):
     for i in range(0,nc):
         P_orig = X[nc+2-1]
         P = np.exp(P_orig*(1+h))
-        lnphi_2w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
-        lnphi_2r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_2w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
+        lnphi_2r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
         P = np.exp(P_orig*(1-h))
-        lnphi_1w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
-        lnphi_1r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0)[0]
+        lnphi_1w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
+        lnphi_1r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0]
                 
         J[i][nc+2-1] = ((lnphi_2w[i]-lnphi_2r[i])-(lnphi_1w[i]-lnphi_1r[i]))/(2*P_orig*h)
         P = np.exp(X[nc+2-1])
