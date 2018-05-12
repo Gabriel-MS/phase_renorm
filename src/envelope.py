@@ -1616,7 +1616,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
             rhol.append(dens[1])
             Pv.append(dens[2])
         Fobj = abs(dens[0]-dens[1])
-        print T,dens[0],dens[1],dens[2],Tmax,Tmin
+        #print T,dens[0],dens[1],dens[2],Tmax,Tmin
 
         if dens[2]!=0:
             flag0 = False

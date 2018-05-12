@@ -229,12 +229,19 @@ def objFunc_dens_Psat_crit(par,argss):
         #    Fobj_dens_vap = 100.0
     Fobj      = Fobj_dens_liq + Fobj_dens_vap + 5*Fobj_P
     Fobj      = Fobj_dens_liq + Fobj_P
-
     
+    #Calculate critical point
+    finalT = 800.0
+    crit_pt = envelope.PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+    Tc_calc = crit_pt[0][len(crit_pt[0])-1]
+    Pc_calc = crit_pt[3][len(crit_pt[3])-1]
+    rhoc_calc = crit_pt[1][len(crit_pt[1])-1]
+    
+    data.surface_out(L__est,phi__est,Fobj_dens_liq,Fobj_dens_vap,Fobj_P,Tc_calc,Pc_calc,rhoc_calc)
+
     print '--------------------------------'
     print 'Parameters:',L__est,phi__est
-    #print 'Critical Temperature:',Tc_calc,Tc_exp
-    #print 'Critical Pressure:',Pc_calc,Pc_exp
+    print 'Critical Point:',Tc_calc,Pc_calc,rhoc_calc
     print 'Objective Function:',Fobj,Fobj_dens_liq,Fobj_dens_vap,Fobj_P
     print '--------------------------------\n'
     
@@ -706,10 +713,10 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #Create boundaries
     bmax = np.empty((2))
     bmin = np.empty((2))
-    bmin[0] = 1.00E-10
+    bmin[0] = 3.00E-10
     bmax[0] = 10.00E-10
-    bmin[1] = 0.01
-    bmax[1] = 15.00
+    bmin[1] = 0.1
+    bmax[1] = 10.00
     
     bounds = np.zeros((2,nparameter))
     bounds[0][0] = bmin[0] #min x
@@ -746,6 +753,18 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
         for j in range(0,nparameter):
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
             #p[i][1] = 1.0
+            
+    #Create Particles to calculate surface for objective function
+    ntot = 50
+    p = np.empty((ntot*ntot,nparameter))
+    Lrange = np.linspace(bmin[0],bmax[0],ntot)
+    phirange = np.linspace(bmin[1],bmax[1],ntot)
+    for i in range(0,ntot):
+        for j in range(0,ntot):
+            k = i*ntot+j
+            p[k][0] = Lrange[i]
+            p[k][1] = phirange[j]
+    nswarm = ntot*ntot
     
     #p[0][0] = 5.45e-10
     #p[0][1] = 1.50
@@ -754,16 +773,16 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     print p
     
     #Initialize PSO method - ALL PARAMETERS
-    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
-    #best_param = best[0]
-    #param_list = best[1]
-    #param_Fobj = best[2]
-    
-    #Initialize MDPSO
-    best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bounds)
+    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
     best_param = best[0]
     param_list = best[1]
     param_Fobj = best[2]
+    
+    #Initialize MDPSO
+    #best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bounds)
+    #best_param = best[0]
+    #param_list = best[1]
+    #param_Fobj = best[2]
     
     #Initialize PSO method to fit parameter 1 (L)
     #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_Tc,argss,p,bmin,bmax)

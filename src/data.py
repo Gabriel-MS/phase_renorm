@@ -1,6 +1,7 @@
 import csv
 import menus
 import pandas as pd
+import numpy as np
 
 #Function to open csv databank and store its values in specific lists---
 def properties():
@@ -479,4 +480,24 @@ def modify_isotherm2(rho,P,dP,d2P):
 
     #Save new values
     df.to_csv('../output/isotherm.csv',sep=';',index=False,index_label=False,header=False)
+#===============================================================================
+
+#Function to output values to calculate surface for objetctive functions--------
+def surface_out(L,phi,Fobj_dens_liq,Fobj_dens_vap,Fobj_P,Tc,Pc,rhoc):
+
+    #Read values
+    df = pd.read_csv('../output/surf.csv',sep=';',header='infer')
+    colnames = []
+    colnames = pd.read_csv('../output/surf.csv',sep=';',header='infer').columns.tolist()
+    
+    data2 = np.array([['',colnames[0],colnames[1],colnames[2],colnames[3],colnames[4],colnames[5],colnames[6],colnames[7]],
+                ['0',L,phi,Fobj_dens_liq,Fobj_dens_vap,Fobj_P,Tc,Pc,rhoc]])
+                
+    df2 = pd.DataFrame(data=data2[1:,1:],
+                  columns=data2[0,1:])
+                  
+    df3 = df.append(df2)
+
+    #Save new values
+    df3.to_csv('../output/surf.csv',sep=';',header=colnames,index=False)
 #=============================================================================

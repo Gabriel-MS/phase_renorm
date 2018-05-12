@@ -99,15 +99,32 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         
         #print L
         #print phi
+        """
+        pi = math.pi
+        sig = np.power(8*3/4/pi*b/Nav,1.0/3.0)[0]
+        c1 = data.c1(IDs)[0]
+        en = data.en(IDs)[0]
+        #sig = np.power(1.15798*b/Nav,1.0/3.0)[0]
+        #L = 1.25*sig
+        L = 0.5/c1*sig
+        #PHI = 4*(pi**2.0)
+        PHI = 2*pi
+        lamda = 1.5
+        w_LJ = (9.0*sig/7.0) #lennard-jones
+        print 'LJ=',w_LJ
+        w_SW = np.sqrt((1./5.)*(sig**2.0)*(lamda**5.0-1)/(lamda**3.0-1)) #square-well potential
+        print 'SW=',w_SW
+        phi = PHI*(w_LJ**2)/2/(L**2)
+        #phi = PHI*(w_SW**2)/2/(L**2)
         
-        sig = np.power(b/Nav,1.0/3.0)[0]
-        L = 1.5*sig
-        PHI = 1.0
-        w = (9.0*sig/7.0)
+        #om = data.omega(IDs)
+        #phi = 2/np.power(np.exp(om),4)[0]
+        #w = 0.575*sig*en/T/kB/b[0]*1e6
+        #print 'w=',w
+        #phi = 2/np.power(np.exp(c1),4)[0]
+        
+        w = 0.575*sig
         phi = PHI*(w**2)/2/(L**2)
-        
-        om = data.omega(IDs)
-        phi = 2/np.power(np.exp(om),4)[0]
         
         print L
         print phi
@@ -125,6 +142,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #phi = phi[0]
         #print 'L=',L
         #print 'phi=',phi
+        """
 
         if estimate==True:
             L = L_est
