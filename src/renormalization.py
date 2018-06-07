@@ -99,15 +99,19 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         
         #print L
         #print phi
-        """
+        
+        
         pi = math.pi
-        sig = np.power(8*3/4/pi*b/Nav,1.0/3.0)[0]
+        sig = np.power(6/pi*b/Nav,1.0/3.0)[0]
         c1 = data.c1(IDs)[0]
         en = data.en(IDs)[0]
         #sig = np.power(1.15798*b/Nav,1.0/3.0)[0]
         #L = 1.25*sig
-        L = 0.5/c1*sig
+        L = 1.2*sig
+        #print L,phi
+        #L = 0.5/c1*sig
         #PHI = 4*(pi**2.0)
+        """
         PHI = 2*pi
         lamda = 1.5
         w_LJ = (9.0*sig/7.0) #lennard-jones
@@ -196,7 +200,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
                 df[w] = renorm_df(w,nd,fl,fs,K,rho,width)
             
             #Update Helmholtz Energy Density
-            df = np.array(df)
+            df = np.array(df) #used to evaluate each step
             df_vec.append(df)
             f = f + df
             #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix
@@ -207,6 +211,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         f = f/bmix/bmix*amix
         T = T/bmix/R*amix
         
+        #df_total = 
+        #df = np.array(df)
+        #df_vec.append(df)
+        
         #Add original attractive forces
         f = f - 0.5*amix*(rho**2)
         
@@ -215,6 +223,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         fres = f - rho*R*T*np.log(rho)
         #f = f + rho*R*T*(np.log(rho)-1) #Already accounting ideal gas energy
         
+        #strT = str(T)
+        #dfT = ('df_%s.csv' %strT)
         #envelope.report_df(df_vec,'df.csv')
 
         #if(EoS==6):

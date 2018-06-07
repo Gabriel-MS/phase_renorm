@@ -715,7 +715,7 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     bmin = np.empty((2))
     bmin[0] = 3.00E-10
     bmax[0] = 10.00E-10
-    bmin[1] = 0.1
+    bmin[1] = 0.01
     bmax[1] = 10.00
     
     bounds = np.zeros((2,nparameter))
@@ -769,15 +769,13 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #p[0][0] = 5.45e-10
     #p[0][1] = 1.50
     
-    print 'particles'
-    print p
-    
+    """
     #Initialize PSO method - ALL PARAMETERS
     best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
     best_param = best[0]
     param_list = best[1]
     param_Fobj = best[2]
-    
+    """
     #Initialize MDPSO
     #best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bounds)
     #best_param = best[0]
@@ -791,10 +789,21 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #param_Fobj = best[2]
 
     #Initialize PSO method to fit parameter 2 (phi)
-    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
-    #best_param = best[0]
-    #param_list = best[1]
-    #param_Fobj = best[2]
+    #Create Particles to calculate surface for objective function
+    ntot = 50
+    nparameter = 2
+    p = np.empty((ntot,nparameter))
+    phirange = np.linspace(bmin[1],bmax[1],ntot)
+    for i in range(0,ntot):
+        p[i][0] = 1e10
+        p[i][1] = phirange[i]
+    nswarm = ntot
+    print 'particles'
+    print p
+    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
+    best_param = best[0]
+    param_list = best[1]
+    param_Fobj = best[2]
 
     #Modify parameters in properties data bank, using best found solution
     data.modify_CPA(IDs,best[0])

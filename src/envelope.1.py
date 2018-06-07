@@ -5,7 +5,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scipy
 import data
-import timeit
 import menus
 import eos
 import math
@@ -20,7 +19,6 @@ import time
 import estimation
 import pandas as pd
 from scipy.interpolate import InterpolatedUnivariateSpline, splrep, splev, interp1d
-from scipy import optimize
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -1162,34 +1160,7 @@ def coexistence_dens(rho1,f1):
     #plt.plot(rho,dPdrho)
     #plt.ylim(-0.001,0.001)
     #plt.show()
-    
-    """
-    start1 = timeit.default_timer()
-    rho1_orig = rho1
-    rho2_orig = rho1
-    
-    def uP_calc(rhov,rho,uspl1,Pspl1):
-        rho1 = rhov[0]
-        rho2 = rhov[1]
-        u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
-        u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
-        P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
-        P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
-        du = abs(u1-u2)
-        dP = abs(P1-P2)
-        uP = du+dP
-        return uP
-    rhos = []
-    rhos.append(rho1)
-    rhos.append(rho2)
-    wow = optimize.minimize(uP_calc,rhos,args=(rho,uspl1,Pspl1),method='Nelder-Mead',options={'maxiter':10000})
-    rho1 = wow.x[0]
-    rho2 = wow.x[1]
-    #print 'Nelder:',rho1,rho2
-    #rho1 = rho1_orig
-    #rho2 = rho2_orig
-    """
-    
+
     while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-4) and (Nit<Nitmax):
     #while (abs(drho1)>tol or abs(drho2)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
         Nit = Nit+1
@@ -1256,7 +1227,7 @@ def coexistence_dens(rho1,f1):
     if abs(Pmax-Pmin)<1e-4:
         rho1 = (rhomax+rhomin)/2
         rho2 = rho1
-    
+
     #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
     #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
     u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
@@ -1645,7 +1616,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
             rhol.append(dens[1])
             Pv.append(dens[2])
         Fobj = abs(dens[0]-dens[1])
-        #print T,dens[0],dens[1],dens[2],Tmax,Tmin
+        print T,dens[0],dens[1],dens[2],Tmax,Tmin
 
         if dens[2]!=0:
             flag0 = False
@@ -2123,7 +2094,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
     if env_type==8 or env_type==9 or env_type==10:
         #Estimate Renormalization Parameters********************************************
         if env_type==8:
-            nd = 400
+            nd = 200
             nx = 200
             n = 5
             finalT = 530.0

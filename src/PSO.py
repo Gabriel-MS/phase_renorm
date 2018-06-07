@@ -59,8 +59,6 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
     #MAIN LOOP------------------------------------------------------------
     #Calculate Objective function for all particles
     while (k<kmax) and (best_swarm_obj>tol):
-        i = 200
-        print i
         #Calculate Objective Function for all particles
         for i in range(0,nswarm):
             #print 'part i',p[i]
@@ -85,8 +83,6 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
                     best_swarm_pos[j] = p[i][j]
                 
         Fobj_old = Fobj
-        
-        raw_input('...')
             
         #Update positions
         for i in range(0,nswarm):
