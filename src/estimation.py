@@ -716,7 +716,7 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     bmin[0] = 3.00E-10
     bmax[0] = 10.00E-10
     bmin[1] = 0.01
-    bmax[1] = 10.00
+    bmax[1] = 5.00
     
     bounds = np.zeros((2,nparameter))
     bounds[0][0] = bmin[0] #min x
@@ -790,7 +790,7 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
 
     #Initialize PSO method to fit parameter 2 (phi)
     #Create Particles to calculate surface for objective function
-    ntot = 50
+    ntot = 20
     nparameter = 2
     p = np.empty((ntot,nparameter))
     phirange = np.linspace(bmin[1],bmax[1],ntot)

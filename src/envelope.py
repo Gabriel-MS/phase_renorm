@@ -1279,6 +1279,186 @@ def coexistence_dens(rho1,f1):
 #======================================================================================
 
 #Given pure component isotherm, calculates phase coexistence densities-----------------
+def coexistence_dens2(rho1,f1,rhol_guess,rhov_guess):
+
+    rho1 = np.array(rho1)
+    f1 = np.array(f1)
+    n = f1.shape[1]
+    rho = rho1.flatten()
+    f = f1.flatten()
+
+    #Spline to get chemical potential
+    fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+
+    #--------
+    rhomax = rho[n-1]
+    rhomaxmax = rhomax
+    rho2 = np.empty((10000))
+    #print n,rhomax
+    for i in range(0,10000):
+        rho2[i] = i*rhomax/10000
+        #print rho2[i],i,float(i/10000)
+    rho2[0] = 1e-5
+    f2 = splev(rho2,fspl)        #Evaluate Cubic Spline First derivative
+    f = f2
+    rho = rho2
+    fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+    n = 10000
+    #--------
+
+    u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
+    
+    drho = rho[n/2]-rho[n/2-1]
+    
+    #Calcule pressure
+    n = 10000
+    P = -f+rho*u
+    a = (P[n/2-15]-P[n/2+15])/(rho[n/2-15]-rho[n/2+15])
+    b = P[n/2+15]-a*rho[n/2+15]
+    i = n/2-15
+    while i<(n/2+15):
+        P[i]=a*rho[i]+b
+        i = i + 1
+
+    #First derivative
+    #drho = rho[1]-rho[0]
+    Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
+    P = splev(rho,Pspl,der=0)
+    dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
+    
+    #Find max and min pressure of isotherm inside binodal curve
+    max1 = int(numerical.bin_max(dPdrho))
+    if max1==n:
+        dens = []
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        dens.append(0)
+        return dens
+    min1 = int(numerical.bin_min(dPdrho))
+    rhomax = rho[max1]
+    rhomin = rho[min1]
+    Pmax = P[max1]
+    Pmin = P[min1]
+    min2 = min1+30
+    max2 = max1-30
+
+    #print Pmax,Pmin,rhomax,max2,max1,min1,min2
+
+    #Pmin = Pmax+1 #method below seems always better, trying forcing it everytime
+    if Pmin>Pmax:
+        min1 = numerical.bin_min_seed(dPdrho,max1)
+        if max1==n:
+            dens = []
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            dens.append(0)
+            return dens
+        rhomin = rho[min1]
+        Pmin = P[min1]
+        min2 = min1+10
+
+    if Pmin<0:
+        Pmin=1e-3
+
+    #Solve newton-raphson system
+    tol = 1e-10
+    drho1 = tol+1
+    drho2 = tol+1
+    du = tol+1
+    dP = tol+1
+    drho2old = tol+1
+    drho1old = tol+1
+    stop = 1.0
+    counter = 0
+
+    uspl = splrep(rho,u,k=3)
+    Pspl = splrep(rho,P,k=3)
+    fspl1 = splev(rho,fspl)
+    uspl1 = splev(rho,uspl)
+    Pspl1 = splev(rho,Pspl)
+    dudrho = splev(rho,uspl,der=1)
+    dPdrho = splev(rho,Pspl,der=1)
+    Nitmax = 1000
+    Nit = 0
+    
+    rho1 = rhov_guess
+    rho2 = rhol_guess
+    
+    while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-5) and (Nit<Nitmax):
+    #while (abs(drho1)>tol or abs(drho2)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
+        Nit = Nit+1
+        rho1 = rho1 + stop*drho1
+        rho2 = rho2 + stop*drho2
+
+        #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
+        #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
+        u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
+        u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
+        #P1 = -f1+rho1*u1
+        #P2 = -f2+rho2*u2
+        P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
+        P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
+
+        du1 = InterpolatedUnivariateSpline(rho,dudrho,k=3)(rho1)
+        du2 = InterpolatedUnivariateSpline(rho,dudrho,k=3)(rho2)
+        dP1 = InterpolatedUnivariateSpline(rho,dPdrho,k=3)(rho1)
+        dP2 = InterpolatedUnivariateSpline(rho,dPdrho,k=3)(rho2)
+        detJ = -dP2*du1+dP1*du2
+
+        drho2 = -du1/detJ*(P1-P2)+dP1/detJ*(u1-u2)
+        drho1 = -du2/detJ*(P1-P2)+dP2/detJ*(u1-u2)
+        
+        du = abs(u1-u2)
+        dP = abs(P1-P2)
+        #print rho1,rho2,du,dP,drho1,drho2,stop,Nit
+
+        if counter>0 and (drho1>drho1old and drho2>drho2old):
+            rho1 = rho1 - stop*drho1
+            rho2 = rho2 - stop*drho2
+            stop = stop/1.005 #Break
+            rho1 = rho1 + stop*drho1/2
+            rho2 = rho2 + stop*drho2/2
+            #print stop,counter
+        
+        counter = counter+1
+        drho1old = drho1
+        drho2old = drho2
+        duold = du
+        dPold = dP
+    
+            
+    if abs(Pmax-Pmin)<1e-5:
+        rho1 = (rhomax+rhomin)/2
+        rho2 = rho1
+    
+    #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
+    #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
+    u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
+    u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
+    #P1 = -f1+rho1*u1
+    #P2 = -f2+rho2*u2
+    P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
+    P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
+
+    dens = []
+    dens.append(rho1)
+    dens.append(rho2)
+    dens.append(P1)
+    dens.append(P2)
+    dens.append(u1)
+    dens.append(u2)
+    #input('...')
+    
+    return dens
+#======================================================================================
+
+#Given pure component isotherm, calculates phase coexistence densities-----------------
 def inflex_search(rho1,f1,tolI):
 
     rho1 = np.array(rho1)
@@ -1634,18 +1814,25 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     Fobjold = 1./3.
     Tmin = 0
     #print 'param:',L__est,phi__est
+    rholl = 1.0
+    rhovv = 1.0
     
     #print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
-        dens = coexistence_dens(ren[2],ren[0])
+        if i==0:
+            dens = coexistence_dens(ren[2],ren[0])
+        if (i>0 and rholl!=0):
+            dens = coexistence_dens2(ren[2],ren[0],rholl,rhovv)
         if (dens[2]!=0):
             Tv.append(T)
             rhov.append(dens[0])
             rhol.append(dens[1])
             Pv.append(dens[2])
+            rhovv = dens[0]
+            rholl = dens[1]
         Fobj = abs(dens[0]-dens[1])
-        #print T,dens[0],dens[1],dens[2],Tmax,Tmin
+        print T,dens[0],dens[1],dens[2],Tmax,Tmin
 
         if dens[2]!=0:
             flag0 = False
