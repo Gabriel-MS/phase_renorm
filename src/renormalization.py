@@ -70,6 +70,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
     uv = []
     
     df_vec = []
+    f_vec2 = []
     
     if nc==1:
         X = np.ones((8))
@@ -103,12 +104,12 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         
         pi = math.pi
         #sig = np.power(6/pi*b/Nav,1.0/3.0)[0]
-        sig = np.power(b/Nav,1.0/3.0)[0]
-        c1 = data.c1(IDs)[0]
-        en = data.en(IDs)[0]
+        #sig = np.power(b/Nav,1.0/3.0)[0]
+        #c1 = data.c1(IDs)[0]
+        #en = data.en(IDs)[0]
         #sig = np.power(1.15798*b/Nav,1.0/3.0)[0]
         #L = 1.25*sig
-        L = 1.5*sig
+        #L = 1.5*sig
         #L = 1/c1*sig
         #print L,phi
         #L = 0.5/c1*sig
@@ -132,16 +133,16 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #w = 100.0*1e-9/100 #van der waals wavelength 100nm
         #phi = PHI*(w**2)/2/(L**2)
         
-        print L
-        print phi
-        print '---------'
+        #print L
+        #print phi
+        #print '---------'
         
         #New parameters
         #L = 1.5*np.power(b/Nav,1.0/3.0)
-        h = 6.626e-34
-        kkB = 1.38e-23
-        MM = 0.034
-        deBroglie = h/np.sqrt(3*kkB*T*MM/Nav)
+        #h = 6.626e-34
+        #kkB = 1.38e-23
+        #MM = 0.034
+        #deBroglie = h/np.sqrt(3*kkB*T*MM/Nav)
         #phi = (deBroglie**2.0)/(L**2.0)*150*3.14
         #L = L[0]
         #phi = phi[0]
@@ -201,10 +202,11 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
                 df[w] = renorm_df(w,nd,fl,fs,K,rho,width)
             
             #Update Helmholtz Energy Density
-            df = np.array(df) #used to evaluate each step
-            df_vec.append(df)
+            #df = np.array(df) #used to evaluate each step
+            #df_vec.append(df)
             f = f + df
-            #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix
+            #f_vec2.append(f)
+            #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix,T
             i = i+1
 
         #Dimensionalization
@@ -227,6 +229,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #strT = str(T)
         #dfT = ('df_%s.csv' %strT)
         #envelope.report_df(df_vec,'df.csv')
+        #envelope.report_df(f_vec2,'f.csv')
 
         #if(EoS==6):
         #    f = fres
@@ -512,7 +515,6 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         min1 = int(0.90*nd) #it was 0.90 before
         max2 = max1+2
         min2 = min1-2
-        print rho[max1],rho[max2],max1,max2,min1,min2
         #raw_input('before')
         while Pfvec[max1]*Pfvec[max2]>0:# and max2<len(Pfvec):
             #max2 = max2+int(nd/200)

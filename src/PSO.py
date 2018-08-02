@@ -90,6 +90,7 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
                 v[i][j] = w*v[i][j] + c1*np.random.rand()*(best_particle_pos[i][j]-p[i][j]) + c2*np.random.rand()*(best_swarm_pos[j]-p[i][j])
                 p[i][j] = p[i][j] + v[i][j]
         
+        """
         #Check boundaries
         for i in range(0,nswarm):
             for j in range(0,nparam):
@@ -97,6 +98,7 @@ def PSO(nparam,ndata,nswarm,objFunc,args,p,bmin,bmax):
                     p[i][j]=bmax[j]
                 if p[i][j]<bmin[j]:
                     p[i][j]=bmin[j]
+        """
                     
         #Save solutions to file
         envelope.report_param(Fobjs,'../output/PSO_renorm_Fobjs.csv')

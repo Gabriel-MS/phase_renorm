@@ -232,7 +232,7 @@ def objFunc_dens_Psat_crit(par,argss):
     
     #Calculate critical point
     finalT = 800.0
-    crit_pt = envelope.PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+    crit_pt = envelope.PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,True,0,0)
     Tc_calc = crit_pt[0][len(crit_pt[0])-1]
     Pc_calc = crit_pt[3][len(crit_pt[3])-1]
     rhoc_calc = crit_pt[1][len(crit_pt[1])-1]
@@ -701,7 +701,7 @@ def Estimate_Parameters_CPA(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,be
     return best
 #====================================================================================== 
 
-#Given initial T, using renormalization method, estimate association parameters----------
+#Given initial T, using renormalization method, estimate renormalization parameters----------
 def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool,AR):
 
     #Parameters for PSO
@@ -713,10 +713,10 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     #Create boundaries
     bmax = np.empty((2))
     bmin = np.empty((2))
-    bmin[0] = 3.00E-10
-    bmax[0] = 10.00E-10
-    bmin[1] = 0.01
-    bmax[1] = 5.00
+    bmin[0] = 5.00E-10
+    bmax[0] = 6.00E-10
+    bmin[1] = 0.50
+    bmax[1] = 1.50
     
     bounds = np.zeros((2,nparameter))
     bounds[0][0] = bmin[0] #min x
@@ -753,7 +753,8 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
         for j in range(0,nparameter):
             p[i][j] = np.random.uniform(bmin[j],bmax[j])
             #p[i][1] = 1.0
-            
+    
+    """
     #Create Particles to calculate surface for objective function
     ntot = 50
     p = np.empty((ntot*ntot,nparameter))
@@ -765,17 +766,18 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
             p[k][0] = Lrange[i]
             p[k][1] = phirange[j]
     nswarm = ntot*ntot
+    """
     
     #p[0][0] = 5.45e-10
     #p[0][1] = 1.50
     
-    """
+    
     #Initialize PSO method - ALL PARAMETERS
     best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
     best_param = best[0]
     param_list = best[1]
     param_Fobj = best[2]
-    """
+    
     #Initialize MDPSO
     #best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bounds)
     #best_param = best[0]

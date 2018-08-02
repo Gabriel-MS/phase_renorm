@@ -654,7 +654,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     #Main iteration conditions
     x = np.array([0.001,0.999]) #x array
     xf = 0.995                    #Main stop condition
-    stepx = 5e-3                #Main step
+    stepx = 1e-3                #Main step
     it = 0                      #Iteration counter
     ity = 0                     #Iteration over y loop counter
     pt = 0                      #Point counter
@@ -681,7 +681,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     print Psat,x,P,y
     Vv = R*T/P #Not going to be used, just starting
     Vl = 0.99  #Not going to be used, just starting
-    P = P/100
+    #P = P/100
     print 'P=',P
     #=============================================================
     
@@ -1325,46 +1325,6 @@ def coexistence_dens2(rho1,f1,rhol_guess,rhov_guess):
     Pspl = splrep(rho,P,k=3)         #Cubic Spline Representation
     P = splev(rho,Pspl,der=0)
     dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
-    
-    #Find max and min pressure of isotherm inside binodal curve
-    max1 = int(numerical.bin_max(dPdrho))
-    if max1==n:
-        dens = []
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        dens.append(0)
-        return dens
-    min1 = int(numerical.bin_min(dPdrho))
-    rhomax = rho[max1]
-    rhomin = rho[min1]
-    Pmax = P[max1]
-    Pmin = P[min1]
-    min2 = min1+30
-    max2 = max1-30
-
-    #print Pmax,Pmin,rhomax,max2,max1,min1,min2
-
-    #Pmin = Pmax+1 #method below seems always better, trying forcing it everytime
-    if Pmin>Pmax:
-        min1 = numerical.bin_min_seed(dPdrho,max1)
-        if max1==n:
-            dens = []
-            dens.append(0)
-            dens.append(0)
-            dens.append(0)
-            dens.append(0)
-            dens.append(0)
-            dens.append(0)
-            return dens
-        rhomin = rho[min1]
-        Pmin = P[min1]
-        min2 = min1+10
-
-    if Pmin<0:
-        Pmin=1e-3
 
     #Solve newton-raphson system
     tol = 1e-10
@@ -1387,21 +1347,19 @@ def coexistence_dens2(rho1,f1,rhol_guess,rhov_guess):
     Nitmax = 1000
     Nit = 0
     
+    drho1 = 0.0
+    drho2 = 0.0
     rho1 = rhov_guess
     rho2 = rhol_guess
     
-    while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-5) and (Nit<Nitmax):
-    #while (abs(drho1)>tol or abs(drho2)>tol) and (abs(Pmax-Pmin)>1e-3) and (Nit<Nitmax):
+    while (abs(du)>tol or abs(dP)>tol) and (Nit<Nitmax):
+    #while (abs(du)>tol or abs(dP)>tol) and (abs(Pmax-Pmin)>1e-5) and (Nit<Nitmax):
         Nit = Nit+1
         rho1 = rho1 + stop*drho1
         rho2 = rho2 + stop*drho2
 
-        #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
-        #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
         u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
         u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
-        #P1 = -f1+rho1*u1
-        #P2 = -f2+rho2*u2
         P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
         P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
 
@@ -1416,7 +1374,6 @@ def coexistence_dens2(rho1,f1,rhol_guess,rhov_guess):
         
         du = abs(u1-u2)
         dP = abs(P1-P2)
-        #print rho1,rho2,du,dP,drho1,drho2,stop,Nit
 
         if counter>0 and (drho1>drho1old and drho2>drho2old):
             rho1 = rho1 - stop*drho1
@@ -1424,7 +1381,6 @@ def coexistence_dens2(rho1,f1,rhol_guess,rhov_guess):
             stop = stop/1.005 #Break
             rho1 = rho1 + stop*drho1/2
             rho2 = rho2 + stop*drho2/2
-            #print stop,counter
         
         counter = counter+1
         drho1old = drho1
@@ -1432,17 +1388,8 @@ def coexistence_dens2(rho1,f1,rhol_guess,rhov_guess):
         duold = du
         dPold = dP
     
-            
-    if abs(Pmax-Pmin)<1e-5:
-        rho1 = (rhomax+rhomin)/2
-        rho2 = rho1
-    
-    #f1 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho1)
-    #f2 = InterpolatedUnivariateSpline(rho,fspl1,k=3)(rho2)
     u1 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho1)
     u2 = InterpolatedUnivariateSpline(rho,uspl1,k=3)(rho2)
-    #P1 = -f1+rho1*u1
-    #P2 = -f2+rho2*u2
     P1 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho1)
     P2 = InterpolatedUnivariateSpline(rho,Pspl1,k=3)(rho2)
 
@@ -1820,10 +1767,10 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
     #print 'T:   dens_vap:   dens_liq:   Fobj:   Fobjder:   step:'
     while Fobj>0.1:
         ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
-        if i==0:
-            dens = coexistence_dens(ren[2],ren[0])
-        if (i>0 and rholl!=0):
-            dens = coexistence_dens2(ren[2],ren[0],rholl,rhovv)
+        #if i==0 or rholl==0:
+        dens = coexistence_dens(ren[2],ren[0])
+        #if (i>0 and rholl!=0):
+        #    dens = coexistence_dens2(ren[2],ren[0],rholl,rhovv)
         if (dens[2]!=0):
             Tv.append(T)
             rhov.append(dens[0])
@@ -1833,6 +1780,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
             rholl = dens[1]
         Fobj = abs(dens[0]-dens[1])
         print T,dens[0],dens[1],dens[2],Tmax,Tmin
+        #raw_input('...')
 
         if dens[2]!=0:
             flag0 = False
@@ -2232,7 +2180,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         #Calculate pure PV envelope*****************************************************
         nd = 400
         nx = 200
-        n = 8
+        n = 5
         finalT = 540.0
         stepT = 2.5
         print '\nCalculating PV envelope'
