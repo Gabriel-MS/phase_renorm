@@ -202,8 +202,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
                 df[w] = renorm_df(w,nd,fl,fs,K,rho,width)
             
             #Update Helmholtz Energy Density
-            #df = np.array(df) #used to evaluate each step
-            #df_vec.append(df)
+            df = np.array(df) #used to evaluate each step
+            df_vec.append(df)
             f = f + df
             #f_vec2.append(f)
             #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix,T
@@ -228,7 +228,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         
         #strT = str(T)
         #dfT = ('df_%s.csv' %strT)
-        #envelope.report_df(df_vec,'df.csv')
+        envelope.report_df(df_vec,'df.csv')
+        raw_input('----')
         #envelope.report_df(f_vec2,'f.csv')
 
         #if(EoS==6):
@@ -706,13 +707,14 @@ def beta_exponent(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_b
     Pv = []
     rhov = []
     rhol = []
-    y = np.empty((10))
-    x = np.empty((10))
+    n = 10
+    y = np.empty((n))
+    x = np.empty((n))
 
-    Tvec = np.linspace(0.99*Tc,0.999*Tc,10)
+    Tvec = np.linspace(0.99*Tc,0.999*Tc,n)
 
     #Calculate coexisting densities
-    for i in range(0,10):
+    for i in range(0,n):
         T = Tvec[i]
         ren = renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est)
         dens = envelope.coexistence_dens(ren[2],ren[0])
@@ -723,22 +725,39 @@ def beta_exponent(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_b
         print T,dens[0],dens[1],dens[2]
 
     #Calculate critical exponent
-    for i in range(0,10):
+    for i in range(0,n):
         y[i] = np.log(abs(rhov[i]-rhol[i])/rhoc)
         x[i] = np.log(abs(Tv[i]-Tc)/Tc)
 
     slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
     beta = slope
-    print 'beta',beta
+    print 'beta',beta,r_value**2.0
 
     return beta
 #=========================================================================================
 
+#Calculates  beta critical exponent-------------------------------------------------------
+def alpha_exponent(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_bool,L__est,phi__est,Tc,rhoc):
+
+    print 'calculating alpha exponent'
+    Tv = []
+    Pv = []
+    rhov = []
+    rhol = []
+    n = 10
+    y = np.empty((n))
+    x = np.empty((n))
+
+    Tvec = np.linspace(1.001*Tc,1.01*Tc,n)
+
+    alpha = 1.0
+
+    return alpha
+#=========================================================================================
+
 #Calculates delta critical exponent-------------------------------------------------------
 def delta_exponent(env,Tc,Pc,rhoc):
-
-
-
+    delta = 1.0
     return delta
 #=========================================================================================
 

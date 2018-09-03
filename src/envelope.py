@@ -1451,7 +1451,7 @@ def inflex_search(rho1,f1,tolI):
     dPdrho = splev(rho,Pspl,der=1)        #Evaluate Cubic Spline First derivative
     d2Pdrho2 = splev(rho,Pspl,der=2)
     
-    data.modify_isotherm2(rho,P,dPdrho,d2Pdrho2)
+    #data.modify_isotherm2(rho,P,dPdrho,d2Pdrho2)
     #raw_input('......')
     
     """
@@ -1837,7 +1837,7 @@ def report_crit(Tc,Pc,rhoc,IDs,Lc,phic,beta):
         phic = float(data.phi(IDs)[0])
     savedir = str('../output/%s' %title)
     with open(savedir,'a') as file:
-        lin1 = [str(round(Tc,9)),str(round(Pc,9)),str(round(rhoc,9)),str('%.2E' %Lc),str(round(phic,9)),str(round(beta,9)),str(round(IDs[0],9))]
+        lin1 = [str(round(Tc,9)),str(round(Pc,9)),str(round(rhoc,9)),str('%.3E' %Lc),str(round(phic,9)),str(round(beta,9)),str(round(IDs[0],9))]
         lin = ('%s\n' % ';'.join(lin1))
         file.write(lin)
 #======================================================================================
@@ -2150,7 +2150,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
     if env_type==5:
         #Calculate pure PV derivative properties*****************************************************
-        nd = 500
+        nd = 1000
         nx = 200
         n = 8
         stepT = 0.5
@@ -2178,7 +2178,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         
     if env_type==2 or env_type==3 or env_type==4:
         #Calculate pure PV envelope*****************************************************
-        nd = 400
+        nd = 500
         nx = 200
         n = 5
         finalT = 540.0
@@ -2189,7 +2189,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
+            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,True,0,0)
             #env_PV = PV_findTc2_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         print 'PV envelope calculated'
 
