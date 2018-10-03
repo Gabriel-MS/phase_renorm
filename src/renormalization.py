@@ -184,6 +184,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
 
         #Main loop****************************************************************
         i = 1
+        f_vec2.append(f)
         while i<=n:
             #print i
             #K = kB*T/((2**(3*i))*(L**3))
@@ -205,9 +206,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             df = np.array(df) #used to evaluate each step
             df_vec.append(df)
             f = f + df
-            #f_vec2.append(f)
+            f_vec2.append(f)
             #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix,T
             i = i+1
+            print i
 
         #Dimensionalization
         rho = rho/bmix
@@ -228,9 +230,13 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         
         #strT = str(T)
         #dfT = ('df_%s.csv' %strT)
+        TT = np.zeros((nd))
+        for i in range(0,nd):
+            TT[i] = T
+        df_vec.append(TT)
         envelope.report_df(df_vec,'df.csv')
+        envelope.report_df(f_vec2,'f.csv')
         raw_input('----')
-        #envelope.report_df(f_vec2,'f.csv')
 
         #if(EoS==6):
         #    f = fres
@@ -1338,3 +1344,53 @@ def crit_mix(estimate_crit,Tci,rhoci,EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_a
     crit.append(rhoc)
     return crit
 #======================================================================================
+
+#Function to calculate entropy curve--------------- 
+def calc_entropy(T,f,P,rho,h,IDs):
+    
+    f0 = np.array(menus.flatten(f[0]))
+    f1 = np.array(menus.flatten(f[1]))
+    f2 = np.array(menus.flatten(f[2]))
+    
+    T0 = np.array(menus.flatten(T[0]))
+    T1 = np.array(menus.flatten(T[1]))
+    T2 = np.array(menus.flatten(T[2]))
+    
+    rho0 = np.array(menus.flatten(rho[0]))
+    rho1 = np.array(menus.flatten(rho[1]))
+    rho2 = np.array(menus.flatten(rho[2]))
+    
+    P0 = np.array(menus.flatten(P[0]))
+    P1 = np.array(menus.flatten(P[1]))
+    P2 = np.array(menus.flatten(P[2]))
+    
+    V0 = 1/rho0
+    V1 = 1/rho1
+    V2 = 1/rho2
+    
+    A0 = f0/rho0
+    A1 = f1/rho1
+    A2 = f2/rho2
+
+    F0 = A0/(R*T0)
+    F1 = A1/(R*T1)
+    F2 = A2/(R*T2)
+    
+    n = len(P1[0])
+    
+    #Derivatives
+    d2AdT2 = (A2 - 2*A1 + A0)/(h**2)
+    d2FdT2 = (F2 - 2*F1 + F0)/(h**2)
+    
+    dAdT = (A2 - A0)/(2*h)
+    dFdT = (F2 - F0)/(2*h)
+    
+    S_A = -dAdT
+    S_F = -dFdT
+    
+    S_data = []
+    S_data.append(S_A)
+    S_data.append(S_F)
+    
+    return S_data
+#==================================================================================================

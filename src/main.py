@@ -63,9 +63,9 @@ MR = user_options[3] #Define Mixing Rule
 z = user_options[4] #Define Feed Composition
 AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
-env_type = 4
+env_type = 11
 P = 0.05
-T = 512.6
+T = 510.00
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations

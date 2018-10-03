@@ -2032,6 +2032,139 @@ def PV_deriv_calc_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,bet
     return der_prop
 #====================================================================================== 
 
+#Given initial T, using renormalization method, calculate entropy curve--------
+def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,dtype):
+    
+    fres0 = []
+    fres1 = []
+    fres2 = []
+    
+    f0 = []
+    f1 = []
+    f2 = []
+    
+    A0 = []
+    A1 = []
+    A2 = []
+    
+    P0 = []
+    P1 = []
+    P2 = []
+    
+    rho0 = []
+    rho1 = []
+    rho2 = []
+    
+    T0 = []
+    T1 = []
+    T2 = []
+    
+    h = 5e-2
+
+    step = 1.0
+    finalT = T
+    
+    if EoS==2 or EoS==4 or EoS==6:
+        #print 'T:   dens_vap:   dens_liq:   P:'
+        while T<=finalT:
+
+            T0.append(T-T*h)
+            T1.append(T)
+            T2.append(T+T*h)
+        
+            ren = renormalization.renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            fres1.append(ren[7])
+            rho1.append(ren[2])
+            P1.append(ren[8])
+            f1.append(ren[0])
+            A1 = f1/rho1
+            #print 'central',T,dens[0],dens[1],dens[2],Fobj
+
+            ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            fres2.append(ren[7])
+            rho2.append(ren[2])
+            P2.append(ren[8])
+            f2.append(ren[0])
+            A2 = f2/rho2
+            #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
+
+            ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
+            fres0.append(ren[7])
+            rho0.append(ren[2])
+            P0.append(ren[8])
+            f0.append(ren[0])
+            A0 = f0/rho0
+            #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
+
+            T = T+step
+    
+        T_list = []
+        fres_list = []
+        P_list = []
+        rho_list = []
+        f_list = []
+        A_list = []
+    
+        T_list.append(T0)
+        T_list.append(T1)
+        T_list.append(T2)
+    
+        fres_list.append(fres0)
+        fres_list.append(fres1)
+        fres_list.append(fres2)
+        
+        f_list.append(f0)
+        f_list.append(f1)
+        f_list.append(f2)
+        
+        A_list.append(A0)
+        A_list.append(A1)
+        A_list.append(A2)
+    
+        P_list.append(P0)
+        P_list.append(P1)
+        P_list.append(P2)
+    
+        rho_list.append(rho0)
+        rho_list.append(rho1)
+        rho_list.append(rho2)
+    
+        if dtype==1: #Isothermal
+            der_prop = renormalization.calc_entropy(T_list,f_list,P_list,rho_list,T*h,IDs)
+        if dtype==2: #isobaric
+            der_prop = renormalization.calc_entropy(T_list,f_list,P_list,rho_list,T*h,IDs,P)
+        
+    else:
+        n = 500
+        b = eos.b_calc(IDs,EoS)
+        x = np.array([0.999,0.001])
+        bmix = eos.bmix_calc(MR,b,x)
+        a = eos.a_calc(IDs,EoS,T)
+        amix = eos.amix_calc(MR,a,x,kij)
+        V = np.empty((n))
+        rho = np.empty((n))
+        for i in range(0,n):
+            rho[i] = np.array(float(i)/n/bmix)
+        rho[0] = 1e-8
+        V = 1/rho
+        f = rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix/np.sqrt(8)*np.log((1+rho*bmix*(1+np.sqrt(2)))/(1+rho*bmix*(1-np.sqrt(2))))
+        A = f*V
+        
+        print T,R,bmix,amix
+        
+        #rho = np.array(menus.flatten(rho))
+        #f = np.array(menus.flatten(f))
+        
+        fspl = splrep(rho,f,k=3)
+        u = splev(rho,fspl,der=1)
+        
+        P = -f+rho*u
+        
+        der_prop = derivativeprop.calc_isothermal_dev_prop_pure_analytical(T,A,P,V,IDs,EoS,MR,kij)
+    
+    return der_prop
+#====================================================================================== 
+
 #Report PV envelope--------------------------------------------------------------------
 def report_PV(data,options,title,print_options):
     n = len(data[0])
@@ -2189,7 +2322,7 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         if env_type==3:
             env_PV = PV_estimate_Tc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n)
         if env_type==4:
-            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,True,0,0)
+            env_PV = PV_findTc3_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,False,0,0)
             #env_PV = PV_findTc2_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
         print 'PV envelope calculated'
 
@@ -2304,4 +2437,32 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
             #reportname = str('../output/param_CPA_%s.csv' %('_'.join(print_options[1])))
             #report_param(param[1],reportname,print_options)
             print ('Estimation reports saved successfully')
+        
+        #Analyze Entropy*****************************************************
+        if env_type==11:
+            nd = 1000
+            nx = 200
+            n = 8
+            stepT = 0.5
+            finalT = T
+            print '\nCalculating entropy curve'
+            S_renorm = PV_Entropy(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,1) #Isothermal
+            #dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,2) #Isobaric
+            print 'Entropy curve calculated'
+
+        #print 'Creating entropy report'
+        #reportname = str('Deriv_Prop_%s.csv' %('_'.join(print_options[1])))
+        #derivativeprop.report_isothermal_dev_prop_pure(reportname,dp_dat[0],dp_dat[1],dp_dat[2],dp_dat[3],dp_dat[4],dp_dat[5],dp_dat[6],
+        #                                             dp_dat[7],dp_dat[8],dp_dat[9],dp_dat[10],dp_dat[11],dp_dat[12],
+        #                                             dp_dat[13],dp_dat[14],dp_dat[15],print_options)
+        #print ('Report %s saved successfully' %reportname)
+
+        #print 'Starting to plot pure isothermal derivative properties'
+        #title = str('Derivative Properties\n%s' %(' + '.join(print_options[1])))
+        #figname = str('Deriv_Prop_%s.png' %('_'.join(print_options[1])))
+        #derivativeprop.plot_isothermal_dev_prop_pure(dp_dat[0],dp_dat[1],dp_dat[2],dp_dat[3],dp_dat[4],dp_dat[5],dp_dat[6],
+        #                                             dp_dat[7],dp_dat[8],dp_dat[9],dp_dat[10],dp_dat[11],dp_dat[12],
+        #                                             dp_dat[13],print_options,figname)
+        #print ('Figure %s saved successfully' %figname)
+        #*******************************************************************************
 #======================================================================================
