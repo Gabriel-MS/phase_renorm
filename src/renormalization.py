@@ -209,7 +209,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             f_vec2.append(f)
             #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix,T
             i = i+1
-            print i
+            #print i
 
         #Dimensionalization
         rho = rho/bmix
@@ -236,7 +236,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         df_vec.append(TT)
         envelope.report_df(df_vec,'df.csv')
         envelope.report_df(f_vec2,'f.csv')
-        raw_input('----')
+        #raw_input('----')
 
         #if(EoS==6):
         #    f = fres
@@ -1009,7 +1009,7 @@ def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
 #====================================================================================== 
 
 #Given initial T, using renormalization method, estimate L and phi parameters----------
-def Estimate_Parameters(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool):
+def Estimate_Parameters2(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,expfile,estimate_bool,crit_bool):
 
     #Parameters for PSO
     nswarm = 5
@@ -1388,9 +1388,76 @@ def calc_entropy(T,f,P,rho,h,IDs):
     S_A = -dAdT
     S_F = -dFdT
     
+    rho = rho[0][0][0]
+    S_A = S_A[0]
+    S_F = S_F[0]
+    
     S_data = []
+    S_data.append(rho)
     S_data.append(S_A)
     S_data.append(S_F)
     
     return S_data
+#==================================================================================================
+
+#Function to plot calculated derivative properties of pure compounds after renormalization--------- 
+def plot_entropy(rho,S_A,S_F,print_options,figname):
+    
+    n = len(rho)
+    
+    #plot selection
+    rho_plot = np.empty((n-10))
+    S_A_plot = np.empty((n-10))
+    S_F_plot = np.empty((n-10))
+    
+    for i in range(5,n-5):
+        j = i-5
+        rho_plot[j] = rho[i]
+        S_A_plot[j] = S_A[i]
+        S_F_plot[j] = S_F[i]
+    
+    #plot S_A curve
+    fig, ax = plt.subplots(figsize=(10,10))
+    
+    ax.plot(rho_plot,S_A_plot)
+    #ax[0,0].set_xlim(xmin=0, xmax=10.107)
+    ax.set_ylabel('Entropy')
+    ax.set_title('Entropy')
+    
+    fig.savefig('../output/Entropy1.png')
+    fig.close()
+    
+    #plot S_F curve
+    fig, ax = plt.subplots(figsize=(10,10))
+    
+    ax.plot(rho_plot,S_F_plot)
+    #ax[0,0].set_xlim(xmin=0, xmax=10.107)
+    ax.set_ylabel('Entropy')
+    ax.set_title('Entropy')
+    
+    fig.savefig('../output/Entropy2.png')
+    fig.close()
+#==================================================================================================
+
+#Function to report calculated derivative properties of pure compounds after renormalization------- 
+def report_entropy(title,rho,S_A,S_F,print_options):
+    n = len(rho)
+    header = 'rho(mol/m3);S_A;S_F\n'
+    savedir = str('../output/%s' %title)
+    with open(savedir,'w') as file:
+        file.write('Defined Configuration:----------------------\n')
+        file.write('Number of components: %i \n' %print_options[0])
+        file.write('Equation of State:    %s \n' %print_options[2])
+        file.write('Mixing Rule:          %s \n' %print_options[3])
+        file.write('Components:           %s \n' %', '.join(print_options[1]))
+        file.write('Feed Composition:     %s \n' %print_options[4])
+        file.write('Association Rule:     %s \n' %', '.join(print_options[5]))
+        file.write('Combining Rule:       %s \n' %print_options[6])
+        file.write('============================================\n')
+        file.write(header)
+        for i in range(0,n):
+                print rho[i],S_A[i],S_F[i],i
+                lin1 = [str(round(rho[i],9)),str(round(S_A[i],9)),str(round(S_F[i],9))]
+                lin = ('%s\n' % ';'.join(lin1))
+                file.write(lin)
 #==================================================================================================
