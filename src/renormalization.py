@@ -148,7 +148,6 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #phi = phi[0]
         #print 'L=',L
         #print 'phi=',phi
-        
 
         if estimate==True:
             L = L_est

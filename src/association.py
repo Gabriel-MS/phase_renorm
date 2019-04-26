@@ -158,8 +158,18 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
         nc=2
     
     #Calculate delta
+    print 'nc',nc
+    print 'V',V
+    print 'CR',CR
+    print 'en_auto',en_auto
+    print 'beta_auto',beta_auto
+    print 'b',b
+    print 'bmix',bmix
+    print 'T',T
+    print 'SM',SM
     delta = delta_calc(nc,V,CR,en_auto,beta_auto,b,bmix,T,SM)
-    
+    print 'delta',delta
+    raw_input('...')
     x = np.array(x)
     X = np.array(X)
 
@@ -190,6 +200,12 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
     QXX = -QXX1-K
     dXdV = np.dot((np.linalg.inv(QXX)),(-QXV))
     X = X + dXdV*deltaV
+    print Xx4m
+    print '=='
+    print delta
+    print '====='
+    print xXD
+    raw_input('aaa')
 
     #If first iteration on volume, X have all values set to 0.2
     if Viter==0:

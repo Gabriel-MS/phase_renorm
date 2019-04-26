@@ -1237,7 +1237,7 @@ def coexistence_dens(rho1,f1):
         
         du = abs(u1-u2)
         dP = abs(P1-P2)
-        #print rho1,rho2,du,dP,drho1,drho2,stop,Nit
+        #print P1,P2,rho1,rho2,du,dP,drho1,drho2,stop,Nit
 
         if counter>0 and (drho1>drho1old and drho2>drho2old):
             rho1 = rho1 - stop*drho1
