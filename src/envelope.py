@@ -652,12 +652,13 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     
     #Definitions--------------------------------------------------
     #Main iteration conditions
-    x = np.array([0.001,0.999]) #x array
+    x = np.array([0.005,0.995]) #x array
     xf = 0.995                    #Main stop condition
-    stepx = 1e-3                #Main step
+    stepx = 5e-4                #Main step
     it = 0                      #Iteration counter
     ity = 0                     #Iteration over y loop counter
     pt = 0                      #Point counter
+    itmax = 100
     
     #tolerances
     tolK = 1e-5             #iteration over Kx
@@ -690,7 +691,8 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
     
         #Iteration Kx start--------------------------------------------------
         errK = tolK+1 #Force enter iteration
-        while errK>tolK:
+        it = 0
+        while errK>tolK and it<itmax:
             func_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,x,kij,-1,Vl,en_auto,beta_auto,CR,SM,it,pt,r_data) #Liquid
             lnfugcoef_l = func_l[0]
             Vl = func_l[1]
@@ -708,7 +710,7 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
             #Iteration y start-----------------------------------------------
             erry = toly+1
             ity = 0
-            while (erry>toly and ity<200) or ity<2:
+            while (erry>toly and ity<100) or ity<2:
                 y = Kx/sumKx
                 sumKxold = sumKx
                 func_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,y,kij, 1,Vv,en_auto,beta_auto,CR,SM,it,pt,r_data) #Vapor
@@ -730,7 +732,13 @@ def Pxy_envelope(T,IDs,EoS,MR,kij,nc,AR,CR,SM,r_data):
             #print 'y',y
             #print 'P',P,sumKx
             #print 'it',it
-            #print 'errK---------------',errK,tolK,P,y
+            print 'errK---------------',errK,tolK,P,y,it
+            if it>=itmax:
+                    Psat = np.array(correlations.Psat_antoine(IDs,T))
+                    P = np.dot(Psat,x)
+                    y = Psat*x/P
+                    Vv = R*T/P #Not going to be used, just starting
+                    Vl = 0.99  #Not going to be used, just starting
             #raw_input('...')
         #Iteration Kx end====================================================
         

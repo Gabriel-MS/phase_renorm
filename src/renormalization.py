@@ -227,14 +227,13 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         fres = f - rho*R*T*np.log(rho)
         #f = f + rho*R*T*(np.log(rho)-1) #Already accounting ideal gas energy
         
-        #strT = str(T)
         #dfT = ('df_%s.csv' %strT)
         TT = np.zeros((nd))
         for i in range(0,nd):
             TT[i] = T
         df_vec.append(TT)
-        envelope.report_df(df_vec,'df.csv')
-        envelope.report_df(f_vec2,'f.csv')
+        #envelope.report_df(df_vec,'df.csv')
+        #envelope.report_df(f_vec2,'f.csv')
         #raw_input('----')
 
         #if(EoS==6):
@@ -274,7 +273,7 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #if nc>1:
         #    if abs(x[0]-1.0)<1e-5:
         #        x[0] = 0.9999
-        
+
     if nc>1:
         Pmat = RectBivariateSpline(x0v,rhob,Pmatv)
     else:
@@ -517,6 +516,118 @@ def volume_renorm(phase, xint, Pint, bmix, R, T, r_data):
         #plt.plot(rho,Pvec)
         #plt.ylim(-15,15)
         #plt.show()
+        #plt.savefig("test.png")
+        #plt.close()
+        #raw_input("...")
+        max1 = 2
+        min1 = int(0.95*nd) #it was 0.90 before
+        max2 = max1+2
+        min2 = min1-2
+        #raw_input('before')
+        while Pfvec[max1]*Pfvec[max2]>0:# and max2<len(Pfvec)-1:
+            #max2 = max2+int(nd/200)
+            max2 = max2+1
+            #print 'max',max2
+            #raw_input('max')
+        if max2-int(nd/100)<0:
+            max1 = 0
+            #print 'max1',max1
+        else:
+            #max1 = max2-int(nd/100)
+            max1 = max2-4
+            #print 'else',max1
+
+        while Pfvec[min1]*Pfvec[min2]>0 and min2>0:
+            #min2 = min2-int(nd/200)
+            min2 = min2-1
+            #print 'min',min2
+            #raw_input('min')
+        #min1 = min2+int(nd/100)
+        min1 = min2+4
+
+        #print 'int',Pint,xint,phase
+        #print 'falsi_spline',rho[max1],rho[max2],rho[min1],rho[min2]
+        #print 'falsi_pressures',Pfvec[max1],Pfvec[max2],Pfvec[min1],Pfvec[min2]
+        #Calculate coexistence densities in interpolated isotherm for given P
+        rho_vap = numerical.falsi_spline(rho, Pfvec, rho[max1], rho[max2], 1e-5)
+        #print 'rho_vap',rho_vap
+        rho_liq = numerical.falsi_spline(rho, Pfvec, rho[min2], rho[min1], 1e-5)
+        #print 'rho_liq',rho_liq
+        #raw_input('...')
+
+        if inflex==True and abs(rho_vap-rho_liq)<1e-5:
+            Pint=Pint/2
+
+        if inflex==True and abs(rho_vap-rho_liq)>1e-5:
+            flag=True
+
+        if xint>0.05:
+            flag=True
+
+    #Select desired density
+    if phase<0:
+        rho_out = rho_liq
+    if phase>0:
+        rho_out = rho_vap
+
+    V = 1/(rho_out/bmix)
+    V_out = []
+    V_out.append(V)
+    V_out.append(0)
+    return V_out
+#=========================================================================================
+
+#Calculates Volume of a component in phase of a mixture with renormalization--------------
+def volume_renorm2(phase, xint, Pint, bmix, R, T, r_data):
+
+    Pspln = r_data[5]
+    rho = r_data[3][0]
+    x = np.array(menus.flatten(r_data[1]))
+
+    nd = len(rho)
+    nx = x.shape[0]
+
+    Pvec = np.empty((nd))
+    Pfvec = np.empty((nd))
+    dPdrho = np.empty((nd))
+
+    flag = False
+    inflex = False
+
+    while flag!=True:
+        #Interpolate specific pressure
+        Pvint = Pspln(xint,0.0001)
+        Pvec[0] = Pvint
+        Pfvec[0] = Pvec[0] - Pint
+
+        for i in range(1,nd-1):
+            rhoint = float(i)/nd
+            Pvint = Pspln(xint,rhoint)
+            #print i,rhoint,Pvint
+            Pvec[i] = Pvint
+            Pfvec[i] = Pvec[i] - Pint
+            dPdrho[i] = (Pvec[i+1] - Pvec[i-1])/(float(i+1)/nd-float(i-1)/nd)
+            if inflex==False and dPdrho[i]<0:
+                inflex=True
+        Pvint = Pspln(xint,int(nd-1))
+        Pvec[nd-1] = Pvint
+        Pfvec[nd-1] = Pvec[nd-1] - Pint
+        dPdrho[0] = (Pvec[1] - Pvec[0])/(float(1)/nd-float(0)/nd)
+        dPdrho[nd-1] = (Pvec[nd-1] - Pvec[nd-2])/(float(nd-1)/nd-float(nd-2)/nd)
+
+        #Bracketing the real densities at given P
+        #print rho
+        #print Pvec
+        #print Pfvec
+        
+        #NEW
+        P_fvec_spl = splrep(rho,Pfvec,k=3)         #Cubic Spline Representation
+        Pfvec = splev(rho,P_fvec_spl,der=0)
+        #NEW
+        
+        #plt.plot(rho,Pvec)
+        #plt.ylim(-15,15)
+        #plt.show()
         max1 = 2
         min1 = int(0.90*nd) #it was 0.90 before
         max2 = max1+2
@@ -591,7 +702,8 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
                     one4c[i][j] = 0
         f_CPA1 = np.log(X)-0.5*X+0.5
         f_CPA = np.dot(np.dot(one4c,x),f_CPA1)
-
+    #print "fcpaa",one4c
+    #print "fcpaa",np.dot(one4c,x)
     #Considering ideal gas energy contribution
     V = 1/rho
     f = {
@@ -605,7 +717,18 @@ def helm_rep(EoS,R,T,rho,amix,bmix,X,x,nc):
         #6: rho*R*T*(np.log(rho/(1-rho*bmix))-1)-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
         6: rho*R*T*np.log(rho/(1-rho*bmix))-rho*amix/bmix*np.log(1+rho*bmix)+rho*R*T*f_CPA #CPA+RG
     }.get(EoS,'NULL')
-    
+    """
+    print "T",T
+    print "rho",rho
+    print "x",x
+    print "amix",amix
+    print "bmix",bmix
+    print "X",X
+    print "f_CPA",f_CPA
+    print "f_CPA1",f_CPA1
+    print "fres",f
+    raw_input('.....')
+    """
     #if abs(rho*bmix-0.15)<1e-4:
     #    print f_CPA1,f_CPA,f
     

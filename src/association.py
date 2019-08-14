@@ -156,8 +156,9 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
     
     if nc==1:
         nc=2
-    
+
     #Calculate delta
+    """
     print 'nc',nc
     print 'V',V
     print 'CR',CR
@@ -165,11 +166,17 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
     print 'beta_auto',beta_auto
     print 'b',b
     print 'bmix',bmix
+    print 'X',X
+    print 'Viter',Viter
+    print 'x',x
+    print 'deltaV',deltaV
     print 'T',T
     print 'SM',SM
+    """
     delta = delta_calc(nc,V,CR,en_auto,beta_auto,b,bmix,T,SM)
-    print 'delta',delta
-    raw_input('...')
+    #print 'delta',delta
+    #raw_input('...')
+    
     x = np.array(x)
     X = np.array(X)
 
@@ -200,12 +207,6 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
     QXX = -QXX1-K
     dXdV = np.dot((np.linalg.inv(QXX)),(-QXV))
     X = X + dXdV*deltaV
-    print Xx4m
-    print '=='
-    print delta
-    print '====='
-    print xXD
-    raw_input('aaa')
 
     #If first iteration on volume, X have all values set to 0.2
     if Viter==0:
@@ -253,6 +254,12 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
             Qold = np.dot(X,(np.dot(X,K).T))
             Qold = np.sum(x4*X1)-0.5*Qold
             Q = Qold-1 #Force enter loop
+            """
+            print 'before loop'
+            print 'Q',Q
+            print 'deltaX',deltaX
+            print 'X',X
+            """
 
             while Q<Qold:
                 Xnew = X+deltaX
@@ -263,13 +270,20 @@ def frac_nbs(nc,V,CR,en_auto,beta_auto,b,bmix,X,Viter,x,deltaV,T,SM):
                 Q = np.sum(x4*X1)-0.5*Q
                 if Q<Qold:
                     deltaX = deltaX/2
-            
+                """
+                print 'Qold',Qold
+                print 'Q',Q
+                print 'deltaX',deltaX
+                print 'X1',X1
+                print 'Q-Qold',Q-Qold
+                """
             Xcond = np.absolute(Xnew-X)
             Xmax = np.amax(Xcond)
             X = Xnew
             
         k = k + 1
-        
+        #print 'k',k,X
+    #raw_input("xxxxxxxxxx")
     return X
 #==========================================================================================
 
