@@ -264,8 +264,12 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
     X = []
     wlist = []
     rlist = []
+    w2list = []
+    r2list = []
     Tlist = []
     Plist = []
+    tpd_LLV_list = []
+    phase_list = []
     
     #Specified variable and position in vector
     ns = nc + 2 - 1 #-1 because first element in zero index
@@ -287,17 +291,17 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
     dFdS[ns] = -1
     
     #Stop conditions
-    Plow  = 0.025 #Stop condition for low pressure
-    Phigh = 30.0 #Stop condition for high pressure
-    Tmax_step = 5.0 #Max step for temperature
-    lnKmax_step = 0.05 #Max step for lnK
+    Plow  = 0.001 #Stop condition for low pressure
+    Phigh = 100.0 #Stop condition for high pressure
+    Tmax_step = 0.5 #Max step for temperature    #5.0
+    lnKmax_step = 0.03 #Max step for lnK    #0.05
     
     #Critical point detector
-    critK = 0.05 #Reference value for approaching critical point
+    critK = 0.03 #Reference value for approaching critical point    #0.05
     
-    h = 1e-6 #Value to calculate numerical derivatives
+    h = 1e-5 #Value to calculate numerical derivatives    #1e-6
     
-    tolN = 1e-7 #Tolerance
+    tolN = 1e-6 #Tolerance    #1e-7
     maxitN = 50
     
     phase = -1 #Incipient phase is liquid
@@ -481,7 +485,32 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
             phase = -phase #Change incipient phase
             critKpass = True
         #print 'SSS',ns,X[ns],S
-        
+
+        #Check tpd for LL equilibria--------------------------------------------------------------
+        nphases = 2
+        tpd_LL = 0.0
+        lnfugcoef_wL = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        lnfugcoef_rL = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        for jj in range(0,nphases-1): #Number of incipient phases
+            for ii in range(0,nc): 
+                tpd_LL += w[ii]*(np.log(w[ii])+lnfugcoef_w[ii]-(np.log(r[ii])+lnfugcoef_rL[ii]))
+
+        #Check tpd for LLV equilibria--------------------------------------------------------------
+        nphases = 2
+        tpd_LLV = 0.0
+        #Trial L composition
+        k = np.ones((nc))
+        k = k/nc*1.0
+        lnfugcoef_k = eos.lnfugcoef_func(IDs,EoS,MR,P,T,k,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        lnfugcoef_w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        lnfugcoef_r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij, 1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Vapor Phase
+        for jj in range(0,nphases-1): #Number of incipient phases
+            for ii in range(0,nc): 
+                tpd_LLV += w[ii]*(np.log(w[ii])+lnfugcoef_w[ii]-(np.log(r[ii])+lnfugcoef_r[ii]))
+                tpd_LLV += k[ii]*(np.log(k[ii])+lnfugcoef_k[ii]-(np.log(r[ii])+lnfugcoef_r[ii]))
+        #if tpd_LLV<0:
+        #   a = PT3_envelope(r,w,k,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM)
+
         #Update variables-------------------------------------------------------
         #if (ns<(nc+1-1)) and (phase==1):
         #    S = -S
@@ -501,7 +530,314 @@ def PT_envelope(z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
         #    print 'T,P',T,P
         #    input ('...at end')
         
-        print 'Phase:',phase,'lnK:',lnK[0],lnK[1],'T:',T,'P:',P,'w1:',w[0],'r1:',r[0]
+        print 'Phase:',phase,'lnK:',lnK[0],lnK[1],'T:',T,'P:',P,'w1:',w[0],'r1:',r[0],'tpd LL:',tpd_LL,'tpd LLV',tpd_LLV
+        w = w/np.sum(w)
+        wlist.append(w[0])
+        rlist.append(r[0])
+        w2list.append(w[1])
+        r2list.append(r[1])
+        Tlist.append(T)
+        Plist.append(P)
+        tpd_LLV_list.append(tpd_LLV)
+        phase_list.append(phase)
+        itN = 0
+        
+        pt = pt+1
+                        
+    out = []
+    out.append(wlist)
+    out.append(rlist)
+    out.append(Tlist)
+    out.append(Plist)
+    out.append(tpd_LLV_list)
+    out.append(phase_list)
+    out.append(w2list)
+    out.append(r2list)
+    return out
+#======================================================================================
+
+#Given initial three-phase equilibria point, calculate PT envelope three-phase lines using continuation method--------------
+def PT3_envelope(r,w,z,T,P,IDs,EoS,MR,kij,en_auto,beta_auto,CR,SM):
+    print "ENTERED THREE-PHASE EQUILIBRIA"
+    
+    #Initial configuration in first step
+    y = np.array(z)
+    nc = r.shape[0]
+    lnfugcoefr_v = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij, 1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Vapor
+    lnfugcoefw_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Liquid
+    lnfugcoefz_l = eos.lnfugcoef_func(IDs,EoS,MR,P,T,z,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Liquid
+    K = np.exp(abs(lnfugcoefr_v)-abs(lnfugcoefw_l)-abs(lnfugcoefz_l))
+    lnK = np.log(K)
+    
+    #Continuation method specifications--------------------------------
+    F = np.empty((nc+2))
+    alfa = np.empty((nc+2))
+    J = np.empty((nc+2,nc+2))
+    X = []
+    wlist = []
+    rlist = []
+    Tlist = []
+    Plist = []
+    
+    #Specified variable and position in vector
+    ns = nc + 2 - 1 #-1 because first element in zero index
+    S = np.log(P)
+    delS = 0.1
+    
+    #Dependent variables
+    lnT = np.log(T)
+    for i in range(0,nc):
+        X.append(lnK[i])
+    X.append(lnT)
+    X.append(S) #Specified variable
+    X = np.array(X)
+    
+    #dFdS vector
+    dFdS = np.empty((nc+2))
+    for i in range(0,nc+1):
+        dFdS[i] = 0
+    dFdS[ns] = -1
+    
+    #Stop conditions
+    Plow  = 0.001 #Stop condition for low pressure
+    Phigh = 100.0 #Stop condition for high pressure
+    Tmax_step = 2.0 #Max step for temperature    #5.0
+    lnKmax_step = 0.03 #Max step for lnK    #0.05
+    
+    #Critical point detector
+    critK = 0.03 #Reference value for approaching critical point    #0.05
+    
+    h = 1e-5 #Value to calculate numerical derivatives    #1e-6
+    
+    tolN = 1e-6 #Tolerance    #1e-7
+    maxitN = 50
+    
+    phase = -1 #Incipient phase is liquid
+    w = x      #incipient phase is liquid
+    r = y      #Reference phase
+    ##################################################################
+    
+    #Continuation method----------------------------------------------
+    print 'Begin Continuation Method'
+    critKpass = False
+    pt = 0 #Point counter
+    pt1 = 0 #
+    while P>Plow and P<Phigh: #Pressure between defined limits
+        mstep = tolN+1
+        itN = 0
+        while (mstep>tolN and itN<maxitN): #Newton loop
+        
+            #Equations
+            lnfugcoef_r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Reference
+            lnfugcoef_w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Incipient
+            lnfugcoef_z = eos.lnfugcoef_func(IDs,EoS,MR,P,T,z,kij, phase,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Incipient
+            for i in range(0,nc):
+                F[i] = (lnK[i]+lnfugcoef_w[i]-lnfugcoef_r[i])
+            F[nc+1-1] = (np.sum(w-r))
+            F[nc+2-1] = (X[ns]-S)
+            #print 'F',F
+            
+            #Jacobian
+            #NC equations derivatives with respect to mole number
+            J = PT_jacobian(IDs,EoS,MR,P,T,w,r,h,kij,phase,X,ns,en_auto,beta_auto,CR,SM)
+            #print 'J',J
+            
+            #Solve system
+            step = scipy.linalg.solve(J,F)
+            #print 'J',J
+            #print 'F',F
+            #print 'step',step
+            if ((phase==1) and (EoS==5) and (itN<20) and pt1<20):
+                step = step/2.5
+            
+            #PROBABLY J IS WRONG AFTER CRITICAL POINT=====================================
+            #if phase==1:
+            #    for i in range(0,nc+2):
+            #        step[i] = -step[i]
+            #print 'step',step
+            #PROBABLY J IS WRONG AFTER CRITICAL POINT=====================================
+            #input('--------------')
+            
+            #Update independent variables-------------------------------------------
+            mstep = 0.0
+            #print 'Xbevor',X
+            for i in range(0,nc+2):
+                X[i] = X[i]-step[i]
+                if mstep<abs(step[i]):
+                    mstep = abs(step[i])
+            #print X
+                    
+            #Update variables-------------------------------------------------------
+            for i in range(0,nc):
+                lnK[i] = X[i]
+                K[i] = np.exp(lnK[i])
+            w = r*K #Adjust incipient phase
+            T = np.exp(X[nc+1-1])
+            P = np.exp(X[nc+2-1])
+            
+            if phase==1:
+                pt1 = pt1 + 1
+            #    print 'X',X
+            #    print 'expX',np.exp(X)
+            #    print 'T,P',T,P
+            #    input ('...')
+            
+            itN = itN+1
+        
+        #Calculate Sensivities--------------------------------------------------
+        ns_old = ns
+        dXdS = scipy.linalg.solve(J,dFdS)
+        dXdS = -dXdS
+        #print 'dXdS',dXdS
+        
+        #Search highest sensivity and update specification variable position----
+        ns = np.argmax(np.absolute(dXdS))
+        #print 'dXdS',dXdS
+        #print 'new ns:',ns
+        
+        #Translating variation in specification variable------------------------
+        if ns!=ns_old:
+            delS = dXdS[ns]*delS
+            for i in range(0,nc+2):
+                if i!=ns:
+                    dXdS = dXdS/dXdS[ns]
+            dXdS[ns] = 1.0
+            S = X[ns] #Update specification variable
+            #print 'SSS',ns,X[ns],S
+        
+        #Step in S for next point-----------------------------------------------
+        #delmax = max(np.sqrt(abs(X[ns]))/10.0,0.1)
+        #delmax = delmax*abs(delS)/delS
+        #updel = delS*3/itN
+        #if delS>0:
+        #    delS = min(updel,delmax)
+        #else:
+        #    delS = max(updel,-delmax)
+        #S = S + delS
+        #print 'new S:',S
+        
+        delmax = ((abs(X[ns]))**0.5)/10.0
+        if delmax < 0.1:
+            delmax = 0.1
+        delmax = abs(delmax)*(abs(delS)/delS)
+        delS = delS*4.0/itN
+        if abs(delmax) < abs(delS):
+            delS = delmax
+        S = S + delS
+        #print 'SSS',ns,X[ns],S
+        
+        #Estimates for next point-----------------------------------------------
+        Told = T
+        lnKold = np.empty((nc))
+        for i in range(0,nc):
+            lnKold[i] = X[i]
+        Xold = X
+        X = Xold + dXdS*delS    #STEP
+        #print 'SSS',ns,X[ns],S
+        for i in range(0,nc):
+            lnK[i] = X[i]
+        T = np.exp(X[nc+1-1])
+        #print 'Xold',Xold
+        #print 'X',X
+        #print 'dXdS',dXdS
+        #print 'delS',delS
+        #print 'New estimates:',np.exp(X)
+        
+        #Adjust large temperature stepsize--------------------------------------
+        while abs(T-Told) > Tmax_step:
+            delS = delS/2.0
+            S = S - delS
+            X = X - dXdS*delS
+            T = np.exp(X[nc+1-1])
+            #print 'SSS',ns,X[ns],S
+        #Adjust large lnK stepsize
+        #while np.amax(np.absolute(lnK-lnKold)) > lnKmax_step:
+        #    delS = delS/2.0
+        #    S = S - delS
+        #    X = X - dXdS*delS
+        #    for i in range(0,nc):
+        #        lnK[i] = X[i]
+      
+        #Adjust large lnK stepsize------------------------------------------------
+        lnKm = 0.0
+        for i in range(0,nc):
+            if abs(X[i])>lnKm:
+                lnKm = abs(X[i])
+              
+        if lnKm<0.1:
+            mstep = 0.0
+            for i in range(0,nc):
+                if abs(delS*dXdS[i])>mstep:
+                    mstep = abs(delS*dXdS[i])
+
+            while mstep>critK:
+                #print 'mstep>critK'
+                delS = delS/2.0
+                S = S - delS
+                X = X - dXdS*delS
+
+                mstep = 0.0
+                for i in range(0,nc):
+                    if abs(delS*dXdS[i])>mstep:
+                        mstep = abs(delS*dXdS[i])
+        
+        #Jump critical point----------------------------------------------------
+        critKpass = False
+        if lnKm<critK:
+            while lnKm<critK:
+                S = S + delS
+                X = X + dXdS*delS
+                lnKm = 0.0
+                for i in range(0,nc):
+                    if X[i]>lnKm:
+                        lnKm = X[i]
+            phase = -phase #Change incipient phase
+            critKpass = True
+        #print 'SSS',ns,X[ns],S
+
+        #Check tpd for LL equilibria--------------------------------------------------------------
+        nphases = 2
+        tpd_LL = 0.0
+        lnfugcoef_wL = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        lnfugcoef_rL = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        for jj in range(0,nphases-1): #Number of incipient phases
+            for ii in range(0,nc): 
+                tpd_LL += w[ii]*(np.log(w[ii])+lnfugcoef_w[ii]-(np.log(r[ii])+lnfugcoef_rL[ii]))
+
+        #Check tpd for LLV equilibria--------------------------------------------------------------
+        nphases = 2
+        tpd_LLV = 0.0
+        #Trial L composition
+        k = np.ones((nc))
+        k = k/nc*1.0
+        lnfugcoef_k = eos.lnfugcoef_func(IDs,EoS,MR,P,T,k,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        lnfugcoef_w = eos.lnfugcoef_func(IDs,EoS,MR,P,T,w,kij,-1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Liquid Phase
+        lnfugcoef_r = eos.lnfugcoef_func(IDs,EoS,MR,P,T,r,kij, 1,0.0,en_auto,beta_auto,CR,SM,0,0,0)[0] #Trial Vapor Phase
+        for jj in range(0,nphases-1): #Number of incipient phases
+            for ii in range(0,nc): 
+                tpd_LLV += w[ii]*(np.log(w[ii])+lnfugcoef_w[ii]-(np.log(r[ii])+lnfugcoef_r[ii]))
+                tpd_LLV += k[ii]*(np.log(k[ii])+lnfugcoef_k[ii]-(np.log(r[ii])+lnfugcoef_r[ii]))
+
+        #Update variables-------------------------------------------------------
+        #if (ns<(nc+1-1)) and (phase==1):
+        #    S = -S
+        for i in range(0,nc):
+            lnK[i] = X[i]
+            K[i] = np.exp(lnK[i])
+            #if phase==1:
+            #    K[i] = 1/K[i]
+            #    lnK[i] = np.log(K[i])
+            #    X[i] = lnK[i]
+        w = r*K #Adjust incipient phase
+        T = np.exp(X[nc+1-1])
+        P = np.exp(X[nc+2-1])
+        #if phase==1:
+        #    print 'X',X
+        #    print 'expX',np.exp(X)
+        #    print 'T,P',T,P
+        #    input ('...at end')
+        
+        print '333 ','Phase:',phase,'lnK:',lnK[0],lnK[1],'T:',T,'P:',P,'w1:',w[0],'r1:',r[0],'tpd LL:',tpd_LL,'tpd LLV',tpd_LLV
         wlist.append(w[0])
         rlist.append(r[0])
         Tlist.append(T)
@@ -590,7 +926,11 @@ def report_PT(data,options,title,print_options):
     p2 = np.array(menus.flatten(data[1]))
     T = np.array(menus.flatten(data[2]))
     P = np.array(menus.flatten(data[3]))
-    header = 'Phase 1;Phase 2;T(K);P(MPa)\n'
+    TPD3 = np.array(menus.flatten(data[4]))
+    phase = np.array(menus.flatten(data[5]))
+    w2 = np.array(menus.flatten(data[6]))
+    r2 = np.array(menus.flatten(data[7]))
+    header = 'Phase 1;Phase 2;T(K);P(MPa);TPD-3-phase;Phase_ID;inc2;ref2;\n'
     savedir = str('../output/%s' %title)
     with open(savedir,'w') as file:
         file.write(' ')
@@ -606,7 +946,7 @@ def report_PT(data,options,title,print_options):
         file.write(header)
         file.write('\n') 
         for i in range(0,n):
-                lin1 = [str(round(p1[i],9)),str(round(p2[i],9)),str(round(T[i],9)),str(round(P[i],9))]
+                lin1 = [str(round(p1[i],9)),str(round(p2[i],9)),str(round(T[i],9)),str(round(P[i],9)),str(round(TPD3[i],9)),str(round(phase[i],9)),str(round(w2[i],9)),str(round(r2[i],9))]
                 lin = ('%s\n' % ';'.join(lin1))
                 file.write(lin)
 #======================================================================================
@@ -2247,13 +2587,14 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
 
         print 'Creating PT report'
         reportname = str('PT_%s.csv' %('_'.join(print_options[1])))
-        reportname = str('PT_%s.csv' %('_'.join(print_options[1])))
+        aa=['{:.4f}'.format(x) for x in print_options[4]]
+        reportname = str('PT_%s.csv' %('_'.join(print_options[1]+[print_options[2]]+aa)))
         report_PT(env_PT,print_options,reportname,print_options)
         print ('Report %s saved successfully' %reportname)
 
         print 'Starting to plot PT envelope'
-        title = str('PT envelope\n%s' %(' + '.join(print_options[1])))
-        figname = str('PT_%s.png' %('_'.join(print_options[1])))
+        title = str('PT envelope\n%s' %(' + '.join(print_options[1]+[print_options[2]]+aa)))
+        figname = str('PT_%s.png' %('_'.join(print_options[1]+[print_options[2]]+aa)))
         zlist = " ,".join(format(x, ".2f") for x in z)
         boxtext = str('z= [%s]' %zlist)
         #boxtext = 'box'
